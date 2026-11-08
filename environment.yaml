@@ -1,0 +1,22 @@
+# Environment for neural-loop-polycube.
+#   conda env create -f environment.yaml
+#   conda activate neural-loop-polycube
+# PyTorch is installed from the CUDA 12.8 wheel index; for another CUDA version
+# (or CPU only) change the index URL below, see https://pytorch.org.
+name: neural-loop-polycube
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - numpy=1.26
+  - scipy=1.15
+  - matplotlib-base=3.10   # plotting without the GUI toolkits (figures are files)
+  - scikit-learn=1.7      # main.py clusters
+  - trimesh=4.12
+  - pillow                # rendered tube views (propagation step 4)
+  - ffmpeg                # main.py sweep-movie
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch==2.9.1
+      - open3d==0.19.0    # rendered tube views (propagation step 4)

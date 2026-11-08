@@ -1,0 +1,12 @@
+# run outputs and the generated warm-up checkpoint (scripts/warmup.sh rebuilds it)
+log/
+warmup/
+*.pt
+
+# point-cloud datasets: ~1 GB, kept outside git (see README, "Data")
+Datasets/
+__MACOSX/
+
+# Python
+__pycache__/
+*.py[cod]
