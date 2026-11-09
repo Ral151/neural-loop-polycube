@@ -1,32 +1,35 @@
-"""Cluster a run's per-loop triplane codes and show the clusters in 3D.
+#!/usr/bin/env python3
+"""Cluster a run's per-loop feature codes and show the clusters in 3D.
 
-Each loop's code is the 48-D feature the field returns at its query point.
-Average-linkage agglomerative clustering on cosine distance, k chosen by the
-silhouette score unless --k is given. Writes <stem>_code_clusters[_tag].png
-(world view, code-PCA view, silhouette curve), .csv and .ply (one coloured
-sphere per loop).
+In triplane mode each loop's code is the 48-D vector the field returns at its
+query point: 16 channels sampled on each of XY, XZ and YZ.  The checkpoint's
+`codes` field is only the row index, so the clustering runs on the sampled
+vectors themselves, with cosine similarity.
 
-    python main.py clusters log/<run>/<stem>_triplane.npz --k 10
-    python main.py clusters <npz> --k auto --kmax 8
-    python main.py clusters <npz> --state log/<run>/states/<stem>_state_e0100.pt --tag e0100
+    python code_clusters.py log/axis_seam10_horse/horse_points_cubic_lam3_triplane.npz
+    python code_clusters.py <npz> --k 4
+    python code_clusters.py <npz> --k auto --kmax 8
 
---state re-reads the codes from a saved network (`main.py fit --save-states`,
-or a *_model.pt); the queries and keys still come from the npz.
+Average-linkage agglomerative clustering on cosine distance, with k chosen by
+the silhouette score unless `--k` is given.  Left: the loops' query points in
+world space.  Middle: the same loops in the PCA basis of their codes.  Right:
+the silhouette across candidate k.
+
+The PLY export replaces every loop centroid with a small sphere mesh in the
+cluster's colour, so the clusters are visible as geometry in a 3D viewer.
 """
 
 import argparse
 from pathlib import Path
 
+import numpy as np
+import trimesh
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import numpy as np
-import torch
-import trimesh
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import silhouette_score
-
-from model.network import TriplaneField
 
 
 def axis_of_keys(keys):
@@ -35,19 +38,37 @@ def axis_of_keys(keys):
     return np.array(['xyz'[i] for i in a]), keys[:, 1], keys[:, 2].astype(int)
 
 
-def sample_state(path, xyz):
-    """Codes at the loop queries, sampled from a saved network's triplane grid.
+def sample_grid(grid, centre, half, xyz):
+    """Bilinear triplane sample, matching TriplaneField.sample's mapping."""
+    planes = ((0, 1), (0, 2), (1, 2))
+    C, res, _ = grid.shape[1:]
+    p = np.clip((xyz - centre) / half, -1.0, 1.0)
+    out = np.empty((len(xyz), 3 * C))
+    for k, (a, b) in enumerate(planes):
+        u = (p[:, a] + 1.0) * 0.5 * (res - 1)   # column (a)
+        v = (p[:, b] + 1.0) * 0.5 * (res - 1)   # row (b)
+        i0 = np.clip(np.floor(u).astype(int), 0, res - 1)
+        j0 = np.clip(np.floor(v).astype(int), 0, res - 1)
+        i1 = np.clip(i0 + 1, 0, res - 1)
+        j1 = np.clip(j0 + 1, 0, res - 1)
+        fu = (u - i0)[None, :]
+        fv = (v - j0)[None, :]
+        g = grid[k]
+        out[:, k * C:(k + 1) * C] = (
+            (1 - fu) * (1 - fv) * g[:, j0, i0] + fu * (1 - fv) * g[:, j0, i1]
+            + (1 - fu) * fv * g[:, j1, i0] + fu * fv * g[:, j1, i1]).T
+    return out
 
-    Accepts a bare state dict (`--save-states`) or a *_model.pt ('state_dict')."""
+
+def sample_state(path, xyz):
+    """Codes from a saved epoch state (a bare state_dict) at the loop queries."""
+    import torch
     sd = torch.load(path, map_location='cpu', weights_only=False)
     sd = sd.get('state_dict', sd)
-    grid = sd['triplane.grid']
-    field = TriplaneField(centre=sd['triplane.box_centre'], half=sd['triplane.box_half'],
-                          resolution=grid.shape[-1], channels=grid.shape[1])
-    with torch.no_grad():
-        field.grid.copy_(grid)
-        feats = field.sample(torch.as_tensor(xyz, dtype=torch.float32))
-    return feats.double().numpy()
+    grid = sd['triplane.grid'].numpy().astype(np.float64)
+    centre = sd['triplane.box_centre'].numpy().astype(np.float64)
+    half = sd['triplane.box_half'].numpy().astype(np.float64)
+    return sample_grid(grid, centre, half, xyz)
 
 
 def cluster_ply(xyz, labels, colours, radius):
@@ -63,25 +84,20 @@ def cluster_ply(xyz, labels, colours, radius):
     return trimesh.util.concatenate(parts)
 
 
-def main(argv=None):
-    """Cluster the codes of a run's loops and write the figure, CSV and PLY."""
-    ap = argparse.ArgumentParser(prog='main.py clusters',
-                                 description=__doc__.splitlines()[0])
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('npz', help='<run>_triplane.npz from a finished run')
     ap.add_argument('--k', default='auto', help='number of clusters or "auto"')
-    ap.add_argument('--kmax', type=int, default=12,
-                    help='largest k tried by the silhouette search')
-    ap.add_argument('--out', default=None,
-                    help='output PNG (default <run>/<stem>_code_clusters[_tag].png)')
+    ap.add_argument('--kmax', type=int, default=12)
+    ap.add_argument('--out', default=None)
     ap.add_argument('--sphere-radius', type=float, default=None,
                     help='PLY sphere radius (default: 0.8%% of the cloud diameter)')
     ap.add_argument('--state', default=None,
-                    help='a saved network (main.py fit --save-states, or a '
-                         '*_model.pt); resample the codes from it instead of the npz '
-                         'features (queries/keys still come from the npz)')
+                    help='epoch state_dict .pt; resample the codes from it instead '
+                         'of the npz features (queries/keys still come from the npz)')
     ap.add_argument('--tag', default='',
                     help='suffix for the output names, e.g. e0100')
-    args = ap.parse_args(argv)
+    args = ap.parse_args()
 
     data = np.load(args.npz)
     xyz = data['queries'].astype(np.float64)
@@ -91,7 +107,6 @@ def main(argv=None):
     axis, off, slot = axis_of_keys(keys)
     n = len(feats)
 
-    # cosine similarity of the unit-length codes
     unit = feats / np.linalg.norm(feats, axis=1, keepdims=True)
     sim = unit @ unit.T
     print(f'{Path(args.npz).name}: {n} loops, codes {feats.shape[1]}-D')
@@ -99,7 +114,6 @@ def main(argv=None):
           f'p50 {np.percentile(sim, 50):.3f}, '
           f'p95 {np.percentile(sim, 95):.3f}')
 
-    # silhouette score for every candidate k
     scores = {}
     for kk in range(2, min(args.kmax, n - 1) + 1):
         lab = AgglomerativeClustering(n_clusters=kk, metric='cosine',
@@ -111,11 +125,12 @@ def main(argv=None):
         k = int(args.k)
     labels = AgglomerativeClustering(n_clusters=k, metric='cosine',
                                      linkage='average').fit_predict(unit)
-    # a fixed k outside the searched range still needs its score
+    ## a fixed k outside the searched range still needs its own score for the
+    ## curve's marker
     if k not in scores:
         scores[k] = silhouette_score(unit, labels, metric='cosine')
 
-    # order clusters by size so the legend and colours stay stable
+    ## order clusters by size so the legend and colours stay stable
     order = sorted(np.unique(labels), key=lambda c: -(labels == c).sum())
     remap = {c: i for i, c in enumerate(order)}
     labels = np.array([remap[c] for c in labels])
@@ -130,7 +145,7 @@ def main(argv=None):
         print(f'    c{c}: {sel.sum():3d} loops ({" ".join(f"{a}{v}" for a, v in mix.items())})'
               f'  intra cos {intra:+.3f}  inter {inter:+.3f}')
 
-    # feature PCA for the middle panel
+    ## feature PCA for the middle panel
     centred = feats - feats.mean(0)
     _, s, vt = np.linalg.svd(centred, full_matrices=False)
     ev = s ** 2 / (s ** 2).sum()
@@ -195,7 +210,8 @@ def main(argv=None):
         for i in range(n):
             f.write(f'{axis[i]},{off[i]:.4f},{slot[i]},{xyz[i, 0]:.4f},'
                     f'{xyz[i, 1]:.4f},{xyz[i, 2]:.4f},{labels[i]}\n')
-    # sphere radius scales with the shape's size
+    ## the sphere radius follows the cloud's own size, so the same setting works
+    ## on a small hand and a long horse
     radius = args.sphere_radius or 0.008 * np.linalg.norm(xyz.max(0) - xyz.min(0))
     clouds = cluster_ply(xyz, labels, colours, radius)
     clouds.export(out.with_suffix('.ply'))
@@ -205,3 +221,6 @@ def main(argv=None):
           f'({len(clouds.vertices)} verts, {len(clouds.faces)} faces, '
           f'sphere radius {radius:.4f})')
 
+
+if __name__ == '__main__':
+    main()

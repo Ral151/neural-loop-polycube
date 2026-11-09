@@ -1,13 +1,26 @@
-"""Seam agreement of a fitted checkpoint: the seam distance D of neighbouring loops.
+"""Measure the seam agreement a checkpoint actually exports.
 
-D (the quantity `--seam-align` and `--distill` act on) is measured on the run's
-own *_feature_graph.csv pairs, at the checkpoint's seam phases when it has them
-and at z = 0. `--against` compares pair by pair with another run on the same planes.
+The fit cannot place the seam: Chamfer and the normal term are invariant
+to `f(z) -> f(z + p_i)`.  This script reads the network at its own `z` grid and
+compares the seams of neighbouring loops on the run's own
+`*_feature_graph.csv` pairs.  The distance is the one `--seam-align`
+minimises,
 
-    python main.py seam-check log/my_run/<stem>_model.pt
-    python main.py seam-check --against log/other_run/<stem>_model.pt log/my_run/<stem>_model.pt
+    D_ij = mean_k |v_i(k) - v_j(k)|^2 / (mean_k |v_i(k)|^2 / 2 + mean_k |v_j(k)|^2 / 2)
+
+on the pair centred at its own mean, so the numbers are directly comparable to
+the solve's `D median a -> b` line and to another checkpoint's.
+
+A run without `--seam-align` has no phases, so its `D` is the seam the fit
+ended on.  An aligned checkpoint is reported twice: at its own phases (what the
+exported loops use) and at zero (what a phase-free copy would start from).
+Passing `--against` also prints the per-pair comparison with another run on the
+same plane set.
+
+    python plc_utils/seam_check.py log/fit300_warm/bunny_points_cubic_lam3_model.pt
+    python plc_utils/seam_check.py --against log/fit300_blank/bunny_points_cubic_lam3_model.pt \
+        log/fit300_warm/bunny_points_cubic_lam3_model.pt
 """
-
 from __future__ import annotations
 
 import argparse
@@ -17,7 +30,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from model.trainer import load_model
+import _paths  # noqa: E402
+from plc_model import mini_nn
 
 
 def read_graph(path, keys):
@@ -46,20 +60,13 @@ def curves_of(model, meta):
     with torch.no_grad():
         if meta['feature_mode'] == 'triplane':
             if meta.get('queries') is None:
-                raise SystemExit('this checkpoint has no queries; re-run main.py fit to '
+                raise SystemExit('this checkpoint has no queries; re-run rosa_main to '
                                  'save them')
             query = torch.as_tensor(np.asarray(meta['queries']), dtype=torch.float32)
             feat = model.triplane(query)
-            axis = None
-            if meta.get('axis_condition'):
-                axes = meta.get('axes')
-                if axes is None:
-                    raise SystemExit('this checkpoint is axis-conditioned but carries '
-                                     'no axes; re-run main.py fit to save them')
-                axis = torch.as_tensor(np.asarray(axes), dtype=torch.float32)
-            return model(z[None].expand(count, -1, -1), None, feat, axis).detach()
+            return model(z[None].expand(count, -1, -1), None, feat)[0].detach()
         codes = torch.as_tensor(np.asarray(meta['codes']), dtype=torch.int64)
-        return model(z[None].expand(count, -1, -1), codes).detach()
+        return model(z[None].expand(count, -1, -1), codes)[0].detach()
 
 
 def seam_distance(curves, pairs, phase=None):
@@ -84,15 +91,13 @@ def seam_distance(curves, pairs, phase=None):
 
 
 def summary(d):
-    """One-line statistics of a D array."""
     return (f'median {np.median(d):.4f}  mean {d.mean():.4f}  '
             f'p90 {np.percentile(d, 90):.4f}  max {d.max():.4f}')
 
 
 def describe(path):
-    """Load a checkpoint and its graph, measure D and return the report lines."""
     ckpt = torch.load(path, map_location='cpu', weights_only=False)
-    model, meta = load_model(path)
+    model, meta = mini_nn.load_model(path)
     graph = Path(path).with_name(Path(path).name.replace('_model.pt', '_feature_graph.csv'))
     if not graph.is_file():
         raise SystemExit(f'{path}: no graph beside the checkpoint; expected {graph}')
@@ -115,15 +120,13 @@ def describe(path):
                 phases=ckpt.get('phases'), keys=keys, lines=lines)
 
 
-def main(argv=None):
-    """Print the seam report of a checkpoint, optionally compared with another."""
-    parser = argparse.ArgumentParser(prog='main.py seam-check',
-                                     description=__doc__.splitlines()[0])
-    parser.add_argument('model', help='a *_model.pt written by main.py fit')
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument('model', help='a *_model.pt written by rosa_main')
     parser.add_argument('--against', default=None, metavar='MODEL',
                         help='another *_model.pt on the same plane set; the per-pair '
                              'comparison is on the shared keys')
-    args = parser.parse_args(argv)
+    args = parser.parse_args()
 
     refit = describe(args.model)
     print('\n'.join(refit['lines']))
@@ -131,7 +134,8 @@ def main(argv=None):
     if args.against:
         other = describe(args.against)
         print('\n'.join(other['lines']))
-        # match pairs by loop key, not index, so a reordered graph still lines up
+        ## the two runs share a plane set, so a pair is the same two keys; match on
+        ## the keys rather than on the index, which also catches a reordered graph
         other_at = {tuple(np.round(k, 6)): m for m, k in enumerate(other['keys'])}
         worse, compared = [], 0
         for (i, j), dij in zip(refit['pairs'], refit['exported']):
@@ -153,3 +157,7 @@ def main(argv=None):
               f'{len(worse)} worse by more than 0.02')
         for (ki, kj, dij, td) in sorted(worse, key=lambda r: -r[2])[:10]:
             print(f'    {ki} - {kj}: D {dij:.4f} against other {td:.4f}')
+
+
+if __name__ == '__main__':
+    main()
