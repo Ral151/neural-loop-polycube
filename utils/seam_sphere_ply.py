@@ -8,9 +8,9 @@ directly in 3D.
 
 Usage
 -----
-    python plc_utils/seam_sphere_ply.py                       # lucy triplane+TV run
-    python plc_utils/seam_sphere_ply.py --run log/cmp_tri_tv01_lucy
-    python plc_utils/seam_sphere_ply.py --radius-frac 0.014 --preview
+    python utils/seam_sphere_ply.py                       # lucy triplane+TV run
+    python utils/seam_sphere_ply.py --run log/cmp_tri_tv01_lucy
+    python utils/seam_sphere_ply.py --radius-frac 0.014 --preview
 """
 from __future__ import annotations
 

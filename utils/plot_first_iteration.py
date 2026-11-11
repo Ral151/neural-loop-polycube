@@ -12,7 +12,7 @@ fit figures use, so counter-clockwise in a panel is counter-clockwise about the
 plane normal.  An arrow on each curve shows which way it is walked: that is the
 one thing chamfer cannot show and the reason a loop can turn over unseen.
 
-  python plc_utils/plot_first_iteration.py log/axis_seam10_horse_repro horse_points_cubic_lam3 y
+  python utils/plot_first_iteration.py log/axis_seam10_horse_repro horse_points_cubic_lam3 y
 """
 from __future__ import annotations
 
@@ -29,9 +29,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
-from plc_model.mini_nn import winding_number
-from plc_model.loop_extraction import plane_basis
+from model import mini_nn
+from model.mini_nn import winding_number
+from model.loop_extraction import plane_basis
 
 AXES = 'xyz'
 PLY_TYPES = {'float': '<f4', 'float32': '<f4', 'double': '<f8',

@@ -16,9 +16,9 @@ An optional contact sheet draws the isometric view of several runs in one grid
 
 Usage
 -----
-    python plc_utils/seam_z0_view.py                      # every log/cmp_* run
-    python plc_utils/seam_z0_view.py log/cmp_tri_cs01_*   # selected run dirs
-    python plc_utils/seam_z0_view.py --sheet log/seam_z0_sheet.png
+    python utils/seam_z0_view.py                      # every log/cmp_* run
+    python utils/seam_z0_view.py log/cmp_tri_cs01_*   # selected run dirs
+    python utils/seam_z0_view.py --sheet log/seam_z0_sheet.png
 """
 from __future__ import annotations
 

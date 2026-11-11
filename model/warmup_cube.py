@@ -7,31 +7,34 @@ theirs, and lies on its cube. No cloud, no bounding box and no shape is read: by
 default it draws a fresh batch of smaller, off-centre cubes every step
 (`mini_nn.random_cube_loops`); `--cubes 0` trains on the one unit cube instead.
 
-The checkpoint holds the shared MLP and the triplane grid. `rosa_main` loads it as
+The checkpoint holds the shared MLP and the triplane grid. `plc_main` loads it as
 the initialisation of every run (`--warmup`, on by default), so this is run once,
 not per shape:
 
     python warmup_cube.py
-    # -> warmup/cube_warmup_random_ranges.pt, the path rosa_main loads
+    # -> warmup/cube_warmup_random_ranges.pt, the path plc_main loads
 
 Warm with the network and grid the fit uses: `--neurons`, `--layers`,
-`--resolution` and `--channels` have to match `rosa_main`'s, or the load is
+`--resolution` and `--channels` have to match `plc_main`'s, or the load is
 refused rather than applied in part.
 """
 
 import argparse
+import sys
 from pathlib import Path
 
 import numpy as np
 import torch
 
-import mini_nn
+## run as `python model/warmup_cube.py`, the repository root is not on the path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from model import mini_nn  # noqa: E402
 
 
 def build_parser():
     parser = argparse.ArgumentParser(
         description='Warm a triplane network on random-size, random-place cubes '
-                    'and save the checkpoint rosa_main loads.')
+                    'and save the checkpoint plc_main loads.')
     parser.add_argument('--steps', type=int, default=300,
                         help='optimisation steps; every cube loop is drawn in every '
                              'step')
@@ -83,7 +86,7 @@ def build_parser():
                              'loops the same way needs a warm-up trained this way too')
     parser.add_argument('--out', default='warmup/cube_warmup_random_ranges.pt',
                         help='checkpoint path (default warmup/'
-                             'cube_warmup_random_ranges.pt, the path rosa_main '
+                             'cube_warmup_random_ranges.pt, the path plc_main '
                              'loads)')
     parser.add_argument('--snapshot-every', type=int, default=0, metavar='N',
                         help='write a fit grid every N steps, so the warm-up can be '
@@ -244,7 +247,7 @@ def main(args=None):
                         seed=args.seed, lr=args.lr,
                         align=args.align, seam=args.seam, warmup=report)
     print(f'  checkpoint -> {out}')
-    print(f'  rosa_main loads {Path("warmup/cube_warmup_random_ranges.pt")} by '
+    print(f'  plc_main loads {Path("warmup/cube_warmup_random_ranges.pt")} by '
           f'default; fit with --warmup {out} to load this one, or --no-warmup '
           f'to fit from a blank network')
     return report

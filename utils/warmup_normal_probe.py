@@ -14,7 +14,7 @@ For each requested step count a fresh trainer is built, warmed, and measured:
 
   cos        mean cosine between the curve's implied normal (tangent x plane
              normal) and the normal of the nearest target point, over the loop
-  reversed   cos < -0.1, the same rule rosa_main uses to turn a loop
+  reversed   cos < -0.1, the same rule plc_main uses to turn a loop
   area       signed area of the decoded curve in its plane; positive means
              counter-clockwise seen from +axis, i.e. the square's own sense
 
@@ -23,7 +23,7 @@ circulation there with the nearest loop's, which shows whether a centroid away
 from a warmed query can come back reversed.
 
 Usage:
-    conda run -n seawall python plc_utils/warmup_normal_probe.py \
+    conda run -n seawall python utils/warmup_normal_probe.py \
         --path normalized_shapes_cuboid/horse_points_cubic_lam3.ply \
         --samples 9 --steps 0,30,300 --feature both
 """
@@ -37,8 +37,8 @@ import numpy as np
 import torch
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
-from plc_model.loop_extraction import LoopExtractor
+from model import mini_nn
+from model.loop_extraction import LoopExtractor
 
 
 def unit(a, eps=1e-12):
@@ -308,7 +308,7 @@ def main():
         features=features, rows=all_rows), indent=1))
 
     print(f'\nwrote {csv_path}')
-    print('A reversed loop is cos < -0.1, the turn rule rosa_main applies.')
+    print('A reversed loop is cos < -0.1, the turn rule plc_main applies.')
     return 0
 
 

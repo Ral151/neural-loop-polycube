@@ -2,7 +2,7 @@
 
 Standalone implementation of `loop_propagation.md`.  It reads a finished loop
 run's per-plane PLYs and `planes.txt` and imports only `align_loops.py`; nothing
-here is imported by `loop_extraction.py` or `rosa_main.py`.
+here is imported by `loop_extraction.py` or `plc_main.py`.
 
 Steps
 -----
@@ -19,13 +19,13 @@ Steps
 
 Usage
 -----
-    python plc_utils/loop_propagation.py --step 1
-    python plc_utils/loop_propagation.py --step 2
-    python plc_utils/loop_propagation.py --step 2b
-    python plc_utils/loop_propagation.py --step 3
-    python plc_utils/loop_propagation.py --step 4
-    python plc_utils/loop_propagation.py --all
-    python plc_utils/loop_propagation.py --step all --good-only   # good loops only
+    python utils/loop_propagation.py --step 1
+    python utils/loop_propagation.py --step 2
+    python utils/loop_propagation.py --step 2b
+    python utils/loop_propagation.py --step 3
+    python utils/loop_propagation.py --step 4
+    python utils/loop_propagation.py --all
+    python utils/loop_propagation.py --step all --good-only   # good loops only
 
 Each step reads the previous step's JSON and writes its own directory under
 `log/loop_propagation/stepN/`.
@@ -270,7 +270,7 @@ def load_run(run: Path, good_only: bool = False):
 def good_loop_mask(run: Path, loops, nblock: int):
     """Which loaded loops are on the good side of the run's good/bad split.
 
-    `rosa_main` writes the two sides of `<stem>_good_loops.ply` as whole M-point
+    `plc_main` writes the two sides of `<stem>_good_loops.ply` as whole M-point
     blocks copied out of the same prediction array that the per-plane
     `_fit.ply` files hold, so a loop is good when the first vertex of a good
     block is one of its own vertices -- the per-plane block may be reversed,

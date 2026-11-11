@@ -7,7 +7,7 @@ run), with 100 points at evenly spaced z, each paired to its nearest target, and
 the cosine the direction term reads at that pair.  Panel positions are the same
 on every sheet, so a loop can be followed epoch by epoch.
 
-  python plc_utils/plot_epoch_sheets.py log/axis_seam10_horse_repro \
+  python utils/plot_epoch_sheets.py log/axis_seam10_horse_repro \
       horse_points_cubic_lam3 y --first 3 --last 13
 """
 from __future__ import annotations
@@ -26,8 +26,8 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
-from plc_model.loop_extraction import plane_basis
+from model import mini_nn
+from model.loop_extraction import plane_basis
 from plot_epoch_matching import build
 from plot_loop_matching import fitted, targets_for, panel, GREEN, RED
 

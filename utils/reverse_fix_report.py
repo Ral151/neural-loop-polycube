@@ -21,7 +21,7 @@ total:
                plus target -> predicted, averaged over loops.  Full targets make
                the number independent of which points a training epoch sampled
 
-  python plc_utils/reverse_fix_report.py log/axis_seam10_horse_repro \
+  python utils/reverse_fix_report.py log/axis_seam10_horse_repro \
       horse_points_cubic_lam3 \
       --state baseline=log/reverse_fix_horse/replay_baseline/state_e50.pt \
       --state frozen50=log/reverse_fix_horse/replay_freeze50/state_e50.pt
@@ -37,7 +37,7 @@ import torch
 from scipy.spatial import cKDTree
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
+from model import mini_nn
 from plot_epoch_matching import build
 from plot_loop_matching import targets_for
 from plot_axis_epochs import all_curves

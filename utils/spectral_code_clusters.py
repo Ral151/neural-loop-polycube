@@ -13,9 +13,9 @@ each family and "auto" chooses one k per family.
     python utils/spectral_code_clusters.py <npz> --per-axis
     python utils/spectral_code_clusters.py <npz> --k 4 --per-axis --out labels.csv
 
-The CSV uses the same columns as `code_clusters.py`, so `plc_utils/cluster_loops_viz.py`
+The CSV uses the same columns as `code_clusters.py`, so `utils/cluster_loops_viz.py`
 reads it directly:
-    python plc_utils/cluster_loops_viz.py --run log/<run> \
+    python utils/cluster_loops_viz.py --run log/<run> \
         --clusters <run>/<stem>_code_clusters_spectral[_axis].csv \
         --out <run>/<run>_cluster_loops_spectral[_axis]
 """

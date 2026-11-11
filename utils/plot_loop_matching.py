@@ -8,7 +8,7 @@ point each one is paired with, and the cosine the term would take at that pair
 -- green where the curve's implied normal agrees with the cloud's, red where it
 does not.
 
-  python plc_utils/plot_loop_matching.py log/axis_seam10_horse_repro horse_points_cubic_lam3 y --turned-only
+  python utils/plot_loop_matching.py log/axis_seam10_horse_repro horse_points_cubic_lam3 y --turned-only
 """
 from __future__ import annotations
 
@@ -25,8 +25,8 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
-from plc_model.loop_extraction import plane_basis
+from model import mini_nn
+from model.loop_extraction import plane_basis
 from plot_first_iteration import arrow, plane_file, read_ply
 
 AXES = 'xyz'

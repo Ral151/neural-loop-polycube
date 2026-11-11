@@ -7,7 +7,7 @@ the axis, 100 points at evenly spaced z, each paired to its nearest target
 point, coloured by the cosine the direction term reads there, with the loop's
 own-centre winding in the title.
 
-  python plc_utils/plot_reverse_fix.py log/axis_seam10_horse_repro \
+  python utils/plot_reverse_fix.py log/axis_seam10_horse_repro \
       horse_points_cubic_lam3 y \
       --state baseline_e50=log/reverse_fix_horse/replay_baseline/state_e50.pt \
       --state frozen_e50=log/reverse_fix_horse/replay_freeze50/state_e50.pt
@@ -22,8 +22,8 @@ import torch
 from scipy.spatial import cKDTree
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
-from plc_model.loop_extraction import plane_basis
+from model import mini_nn
+from model.loop_extraction import plane_basis
 from plot_epoch_matching import build
 from plot_loop_matching import targets_for
 from plot_axis_epochs import all_curves, sheet

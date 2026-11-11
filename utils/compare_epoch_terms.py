@@ -7,7 +7,7 @@ not add up to the loss: the run weights align, tv and distill by an annealed
 `--normal`, `--triplane-tv` and `--distill` when it forms the loss.  The tv
 column is absent for an arm trained with `--triplane-tv 0`.
 
-  python plc_utils/compare_epoch_terms.py 'log/20261108_*_fixed_*' \
+  python utils/compare_epoch_terms.py 'log/20261108_*_fixed_*' \
       'log/20261108_*_random_*' --out log/epoch_terms_compare.png
 """
 from __future__ import annotations

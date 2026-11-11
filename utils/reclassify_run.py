@@ -12,8 +12,8 @@ weights, recomputes every per-loop error and rewrites
 The replay is checked against the old split PLYs first, so a mismatch in the
 extraction or the checkpoint stops the run instead of overwriting the files.
 
-  python plc_utils/reclassify_run.py log/matchangle_noaxis_150_dancing_children100K
-  python plc_utils/reclassify_run.py log/my_run --bad-loop-err 0.02 --max-align-err 0.5
+  python utils/reclassify_run.py log/matchangle_noaxis_150_dancing_children100K
+  python utils/reclassify_run.py log/my_run --bad-loop-err 0.02 --max-align-err 0.5
 """
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ import trimesh
 from scipy.spatial import cKDTree
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
-from plc_model.loop_extraction import (AXIS_COLORS, LoopExtractor, plane_keys,
+from model import mini_nn
+from model.loop_extraction import (AXIS_COLORS, LoopExtractor, plane_keys,
                                        write_points)
 
 BAD_POINT_ERR = 0.15

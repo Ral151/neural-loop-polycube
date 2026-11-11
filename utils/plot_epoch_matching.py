@@ -7,7 +7,7 @@ on every row: the same point of the loop can be followed from the warm-up square
 to the first updates, and the pairing and the cosine the direction term reads at
 that point compared directly.
 
-  python plc_utils/plot_epoch_matching.py log/axis_seam10_horse_repro horse_points_cubic_lam3 y \
+  python utils/plot_epoch_matching.py log/axis_seam10_horse_repro horse_points_cubic_lam3 y \
       --state e1=log/axis_seam10_horse_repro/replay/state_e1.pt \
       --state e2=log/axis_seam10_horse_repro/replay/state_e2.pt
 """
@@ -26,8 +26,8 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
-from plc_model.loop_extraction import plane_basis
+from model import mini_nn
+from model.loop_extraction import plane_basis
 from plot_loop_matching import fitted, targets_for, panel, GREEN, RED
 
 AXES = 'xyz'

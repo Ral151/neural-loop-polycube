@@ -1,7 +1,7 @@
 """The neural fit: shared network, curve geometry, losses and training loop.
 
 Formerly one `mini_nn.py`; each class now lives in its own module. The public
-names are re-exported here, so `from plc_model import mini_nn` and
+names are re-exported here, so `from model import mini_nn` and
 `mini_nn.Trainer` keep working unchanged.
 """
 

@@ -10,8 +10,8 @@ in the original plane) and shifting the query and the plane origin together
 (the generated curve is placed on the shifted plane).
 
 Usage:
-    python plc_utils/loop_shift_probe.py --run log/triplane_shift_s29
-    python plc_utils/loop_shift_probe.py --run log/triplane_shift_s29 --loops 3,17,42
+    python utils/loop_shift_probe.py --run log/triplane_shift_s29
+    python utils/loop_shift_probe.py --run log/triplane_shift_s29 --loops 3,17,42
 """
 
 import argparse
@@ -22,7 +22,7 @@ import torch
 import trimesh
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
+from model import mini_nn
 
 
 def resolve(run, model=None, loop_ply=None):
@@ -54,7 +54,7 @@ def read_loops(path, n_loops, block):
 def read_split_loops(run, model_path, n_loops, block):
     """Rebuild the checkpoint's loop order from the good and bad PLYs.
 
-    `rosa_main` writes the two sides on their own, and `*_loop_split.txt` holds
+    `plc_main` writes the two sides on their own, and `*_loop_split.txt` holds
     one `g`/`b` per loop in the checkpoint's order, so the two files interleave
     back into the order the keys and queries are in.
     """
@@ -170,7 +170,7 @@ def main():
     plane_normal /= np.linalg.norm(plane_normal, axis=1, keepdims=True) + 1e-12
     plane_point = np.asarray(meta['plane_point'], np.float64)
     if meta['queries'] is None:
-        raise SystemExit('this checkpoint has no query points; re-run rosa_main to save them')
+        raise SystemExit('this checkpoint has no query points; re-run plc_main to save them')
     queries = np.asarray(meta['queries'], np.float64)
     block = int(meta['latent_points'])
     fitted = (read_loops(loops_path, len(keys), block) if loops_path else

@@ -14,7 +14,7 @@ loops in the per-plane PLYs and writes:
 
 `--groups-only` writes just `<out>_groups.png` and skips every other output.
 
-    python plc_utils/cluster_loops_viz.py --run log/axis_seam10_laurent_hand
+    python utils/cluster_loops_viz.py --run log/axis_seam10_laurent_hand
 """
 from __future__ import annotations
 

@@ -13,7 +13,7 @@ dot where the point was left unmatched.  It also prints the same matched and
 rerouted fractions `match_meta` reports, plus the chamfer loss with and without
 the normal test, so the number in the run log can be audited loop by loop.
 
-  python plc_utils/plot_rerouted_matching.py log/20261109_armadillo_1000ep \
+  python utils/plot_rerouted_matching.py log/20261109_armadillo_1000ep \
       armadillo_normal_cubic_lam3 --top 12
 """
 from __future__ import annotations
@@ -30,8 +30,8 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
-from plc_model.loop_extraction import LoopExtractor, plane_basis, plane_keys
+from model import mini_nn
+from model.loop_extraction import LoopExtractor, plane_basis, plane_keys
 from plot_first_iteration import arrow
 
 AXES = 'xyz'

@@ -1,6 +1,6 @@
 """Cross-section loop extraction: the geometry helpers and the class that runs them.
 
-`rosa_main` is the entry point and this module has no command line of its own.  It
+`plc_main` is the entry point and this module has no command line of its own.  It
 holds the plane slicing, the Poisson field, the loop centres and the assignment
 geometry, the rendering of the extraction figures, and `LoopExtractor`, one object
 per point cloud that walks those stages and keeps each result on itself.
@@ -16,8 +16,9 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
-## the file `rosa_main` reads when no path is named
-DEFAULT_PLY = str(Path(__file__).resolve().parent / 'normalized_shapes' / 'laurent_hand_normal.ply')
+## the file `plc_main` reads when no path is named
+DEFAULT_PLY = str(Path(__file__).resolve().parents[1] / 'Datasets' / 'normalized_shapes_cuboid'
+                  / 'normalized_shapes_cuboid' / 'laurent_hand_normal_cubic_lam3.ply')
 
 # functions
 

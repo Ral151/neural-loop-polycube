@@ -2,7 +2,7 @@
 
 Standalone implementation of the `todo.md` plan ("A smooth switch with a
 closed-form solution", "Synchronized loops define the tube coordinates").  It
-does not import `loop_extraction.py` or `rosa_main.py`, and nothing calls it
+does not import `loop_extraction.py` or `plc_main.py`, and nothing calls it
 yet; it is a self-contained module for the next stage of the loop work.
 
 Conventions

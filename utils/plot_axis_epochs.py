@@ -9,7 +9,7 @@ loop can be followed epoch by epoch.  It also writes one summary sheet of the
 winding of every loop over the whole epoch range, next to the count that runs
 clockwise.
 
-  python plc_utils/plot_axis_epochs.py log/axis_seam10_horse_repro \
+  python utils/plot_axis_epochs.py log/axis_seam10_horse_repro \
       horse_points_cubic_lam3 --first 0 --last 20
 """
 from __future__ import annotations
@@ -28,8 +28,8 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
-from plc_model.loop_extraction import plane_basis
+from model import mini_nn
+from model.loop_extraction import plane_basis
 from plot_epoch_matching import build
 from plot_loop_matching import targets_for, panel, GREEN, RED
 

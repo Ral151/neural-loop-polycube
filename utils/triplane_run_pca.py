@@ -9,8 +9,8 @@ loop family actually reads are visible.  `--delta` adds a second row with the
 change from the cube warm-up; it is off by default because a sparse warm-up
 leaves the trained field almost unchanged in its delta.
 
-    python plc_utils/triplane_run_pca.py log/axis_seam10_horse/*_model.pt
-    python plc_utils/triplane_run_pca.py log/axis_seam10_horse/*_model.pt --delta
+    python utils/triplane_run_pca.py log/axis_seam10_horse/*_model.pt
+    python utils/triplane_run_pca.py log/axis_seam10_horse/*_model.pt --delta
 
 The grid is parameterised on the unit cube and mapped onto the run's box, so
 the panels are drawn in world coordinates with that box's extents.  Colours are

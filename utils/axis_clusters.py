@@ -5,9 +5,9 @@ The propagation is already axis-pure (an edge only joins loops on adjacent
 planes of the same axis), so filtering its step 1-4 outputs by axis gives the
 clusters along that axis without rerunning the geometry.
 
-    python plc_utils/loop_propagation.py --run log/axis_seam10_armadillo \
+    python utils/loop_propagation.py --run log/axis_seam10_armadillo \
         --out log/axis_seam10_armadillo_propagation --all --good-only
-    python plc_utils/axis_clusters.py --run log/axis_seam10_armadillo --axis z
+    python utils/axis_clusters.py --run log/axis_seam10_armadillo --axis z
 
 Writes, under <propagation>/<axis>_clusters/:
   <axis>_loops.csv        one row per loop: track, chain, tube, stable, RMS

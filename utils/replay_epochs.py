@@ -8,7 +8,7 @@ why this trains under epochs=1000 and is cut short rather than being asked for a
 few epochs: a short call would anneal the direction term to nothing by its last
 update, which is not what the run did.
 
-  python plc_utils/replay_epochs.py [out_dir] [--until 13]
+  python utils/replay_epochs.py [out_dir] [--until 13]
 
 The default out dir is log/axis_seam10_horse_repro/replay; `state_eN.pt` holds
 the model after N updates, which is the state the run's diagnostics row N
@@ -33,8 +33,8 @@ out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 
 sys.argv = [
-    'rosa_main.py',
-    '--path', 'normalized_shapes_cuboid/horse_points_cubic_lam3.ply',
+    'plc_main.py',
+    '--path', 'Datasets/normalized_shapes_cuboid/normalized_shapes_cuboid/horse_points_cubic_lam3.ply',
     '--train',
     '--epochs', '1000',
     '--samples', '29',
@@ -52,8 +52,8 @@ if args.freeze_f_epochs:
     sys.argv += ['--freeze-f-epochs', str(args.freeze_f_epochs)]
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
-import rosa_main
+from model import mini_nn
+import plc_main
 
 
 class Stop(Exception):
@@ -78,6 +78,6 @@ def train(self, epochs=1, every=None, on_epoch=None):
 
 mini_nn.Trainer.train = train
 try:
-    rosa_main.main()
+    plc_main.main()
 except Stop:
     print(f'stopped after epoch {args.until}')

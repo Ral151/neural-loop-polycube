@@ -5,7 +5,7 @@ beside it; this reads those lines back from the run's own record and draws them
 together, so the composition of the loss is visible next to its size.  It does
 not re-fit or read a checkpoint.
 
-  python plc_utils/plot_epoch_loss.py log/20261108_211335_fixed_laurent_hand
+  python utils/plot_epoch_loss.py log/20261108_211335_fixed_laurent_hand
 """
 from __future__ import annotations
 

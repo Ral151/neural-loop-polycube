@@ -17,8 +17,8 @@ exported loops use) and at zero (what a phase-free copy would start from).
 Passing `--against` also prints the per-pair comparison with another run on the
 same plane set.
 
-    python plc_utils/seam_check.py log/fit300_warm/bunny_points_cubic_lam3_model.pt
-    python plc_utils/seam_check.py --against log/fit300_blank/bunny_points_cubic_lam3_model.pt \
+    python utils/seam_check.py log/fit300_warm/bunny_points_cubic_lam3_model.pt
+    python utils/seam_check.py --against log/fit300_blank/bunny_points_cubic_lam3_model.pt \
         log/fit300_warm/bunny_points_cubic_lam3_model.pt
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ import numpy as np
 import torch
 
 import _paths  # noqa: E402
-from plc_model import mini_nn
+from model import mini_nn
 
 
 def read_graph(path, keys):
@@ -60,7 +60,7 @@ def curves_of(model, meta):
     with torch.no_grad():
         if meta['feature_mode'] == 'triplane':
             if meta.get('queries') is None:
-                raise SystemExit('this checkpoint has no queries; re-run rosa_main to '
+                raise SystemExit('this checkpoint has no queries; re-run plc_main to '
                                  'save them')
             query = torch.as_tensor(np.asarray(meta['queries']), dtype=torch.float32)
             feat = model.triplane(query)
@@ -122,7 +122,7 @@ def describe(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('model', help='a *_model.pt written by rosa_main')
+    parser.add_argument('model', help='a *_model.pt written by plc_main')
     parser.add_argument('--against', default=None, metavar='MODEL',
                         help='another *_model.pt on the same plane set; the per-pair '
                              'comparison is on the shared keys')

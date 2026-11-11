@@ -32,7 +32,7 @@ The cloud is rescaled so the mean kNN edge is 1 before solving, which makes
 back before export.
 
 Example:
-    python plc_utils/cubic_stylize_points.py \
+    python utils/cubic_stylize_points.py \
         --points normalized_shapes/rocker-arm_points.ply \
         --out logs/cubic/rocker --lam 3 --iters 60
 """

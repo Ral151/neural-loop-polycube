@@ -7,7 +7,7 @@ zero, and records how many loops run against their target normals as the epochs
 pass.
 
 Usage:
-    conda run -n seawall python plc_utils/finetune_normal_probe.py \
+    conda run -n seawall python utils/finetune_normal_probe.py \
         --path normalized_shapes_cuboid/horse_points_cubic_lam3.ply \
         --samples 29 --warmup 30 --epochs 1000 --every 100
 """

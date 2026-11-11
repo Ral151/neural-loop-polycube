@@ -7,8 +7,8 @@ R, G and B, so every plane becomes a 32 x 32 colour snapshot in one shared
 feature basis. The unit cube's 12 reference loop centroids are marked as fixed
 places on the grid.
 
-    python plc_utils/triplane_pca.py warmup/cube_warmup_xavier.pt
-    python plc_utils/triplane_pca.py warmup/cube_warmup_random_ranges.pt \\
+    python utils/triplane_pca.py warmup/cube_warmup_xavier.pt
+    python utils/triplane_pca.py warmup/cube_warmup_random_ranges.pt \\
         warmup/cube_warmup_axis.pt
 
 The checkpoint's frame is the unit cube, so cell centres are on [-0.5, 0.5].

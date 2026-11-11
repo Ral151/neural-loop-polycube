@@ -1,6 +1,6 @@
 """Run the cross-section loop pipeline end to end.
 
-`plc_model.loop_extraction` owns the geometry: slicing, Poisson fields, loop
+`model.loop_extraction` owns the geometry: slicing, Poisson fields, loop
 centres and loop assignment, behind one `LoopExtractor` object.  This module
 owns the run: it exposes the only command line, extracts the loops through that
 object and, with ``--train``, fits every loop with the shared mini network and
@@ -14,8 +14,8 @@ import os
 import numpy as np
 import torch
 
-from plc_model import mini_nn
-from plc_model.loop_extraction import (AXIS_COLORS, DEFAULT_PLY,
+from model import mini_nn
+from model.loop_extraction import (AXIS_COLORS, DEFAULT_PLY,
                                        LoopExtractor, bisect_offsets_trace,
                                        plane_keys, save_fit_grid,
                                        save_plane_files, write_points)
@@ -105,7 +105,7 @@ def build_parser():
                         help='arrows drawn from each fitted curve along its '
                              'predicted normal, per loop (0 for none, all for every point)')
     parser.add_argument('--save-plane-files', dest='plane_files',
-                        action='store_true', default=False,
+                        action='store_true', default=True,
                         help='write the per-plane slice/loops/fit PLYs and fit PNGs '
                              'under <out>/planes/. Off by default: planes.txt and '
                              'bad_loops.txt are always written, and the combined fit '
@@ -146,7 +146,7 @@ def build_parser():
     parser.add_argument('--warmup', default='warmup/cube_warmup_random_ranges.pt',
                         metavar='CKPT',
                         help='cube warm-up checkpoint loaded before the first fit, on '
-                             'by default. `plc_model/warmup_cube.py` trains it on cubes and '
+                             'by default. `model/warmup_cube.py` trains it on cubes and '
                              'nothing else: their cross-sections are exact squares, '
                              'and the network learns to draw them on the cubes, all '
                              'circulating the same way and all putting z = 0 where '
@@ -164,7 +164,7 @@ def build_parser():
                              'is laid on the cloud\'s box. The load is refused if the '
                              'checkpoint\'s network, grid shape or pooling '
                              'differs from this run\'s. A missing path is an error: run '
-                             'plc_model/warmup_cube.py first')
+                             'model/warmup_cube.py first')
     parser.add_argument('--no-warmup', dest='warmup', action='store_const', const=None,
                         help='fit the loops from a blank network, which is the '
                              'ablation of the cube warm-up')
@@ -493,7 +493,7 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
 
     found: the loop extractor that has already run, whose cloud, planes, loops
              and run folder are what is fitted and written
-    warmup: a cube warm-up checkpoint from `plc_model/warmup_cube.py`, loaded into the
+    warmup: a cube warm-up checkpoint from `model/warmup_cube.py`, loaded into the
              network before the first fit; None fits from a blank network.  The
              warm-up was trained on cubes and nothing else (by default of random
              size and place), so it carries no shape information: what it hands
@@ -660,7 +660,7 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
     ## before the extraction has produced loops nothing will warm
     if warmup is not None and not os.path.isfile(warmup):
         raise SystemExit(f'--warmup: no checkpoint at {warmup}. Train one with '
-                         f'`python plc_model/warmup_cube.py`, or pass --no-warmup to fit from '
+                         f'`python model/warmup_cube.py`, or pass --no-warmup to fit from '
                          f'a blank network')
     ## the rehearsal is a second reading of the same checkpoint, so it is resolved
     ## once here rather than in every stage's trainer
@@ -674,7 +674,7 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
         if teacher_warmup is None or not os.path.isfile(teacher_warmup):
             raise SystemExit(f'--distill: no teacher checkpoint at {teacher_warmup}. '
                              f'Pass --distill-warmup, or train one with '
-                             f'`python plc_model/warmup_cube.py`')
+                             f'`python model/warmup_cube.py`')
 
     ## the limit is stated in the shape's own units, but chosen as a fraction of its
     ## longest extent, which is the only scale both a normalised and a raw copy of
@@ -1094,7 +1094,7 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
                     raise SystemExit(
                         f'--warmup {warmup} was trained with {warm_pool} features '
                         f'and this fit pools them as {feature_pool}; warm up with '
-                        f'`plc_model/warmup_cube.py --feature-pool {feature_pool}`')
+                        f'`model/warmup_cube.py --feature-pool {feature_pool}`')
                 print(f'  warm-up {warmup}: {report.get("steps", "?")} steps on '
                       f'{report.get("loops", "?")} cube loops '
                       f'({report.get("planes", "?")} per axis), '
@@ -1364,7 +1364,7 @@ def main(argv=None):
     ## extraction spends a minute producing loops nothing will be fitted to
     if args.train and args.warmup is not None and not os.path.isfile(args.warmup):
         raise SystemExit(f'--warmup: no checkpoint at {args.warmup}. Train one with '
-                         f'`python plc_model/warmup_cube.py`, or pass --no-warmup to fit from '
+                         f'`python model/warmup_cube.py`, or pass --no-warmup to fit from '
                          f'a blank network')
     if args.snapshot_every < 0:
         raise SystemExit(f'--snapshot-every must be 0 or a count of epochs, got '

@@ -13,7 +13,7 @@ winding at every epoch (`_loop_winding.npz`); this reads those and draws
   e  the winding of every y loop over the run
   f  foldover, the angle a loop spends per turn; a retrace reads above 1
 
-Usage: python plc_utils/plot_y_orientation.py [run_dir] [stem]
+Usage: python utils/plot_y_orientation.py [run_dir] [stem]
 """
 import csv
 import sys

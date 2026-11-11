@@ -143,7 +143,7 @@ class Trainer:
                      so it is in the same units as the chamfer loss and is exactly
                      zero when the student's seam agreement is the teacher's
         distill_warmup: the cube-warm-up checkpoint the teacher is built from.
-                     `rosa_main` passes its own `--warmup`, so the teacher is the
+                     `plc_main` passes its own `--warmup`, so the teacher is the
                      checkpoint the fit started from unless another one is named
         distill_pairs, distill_weights: P x 2 loop indices whose seams the profile
                      is read over, and one non-negative weight per pair, e.g. the
@@ -157,7 +157,7 @@ class Trainer:
                      the shape never moves: what changes is where the first sample of
                      an exported loop sits
         seam_pairs: P x 2 target indices whose seams are held together, e.g. the
-                     mutual-nearest loops of `code_neighbour_graph` in `rosa_main`
+                     mutual-nearest loops of `code_neighbour_graph` in `plc_main`
         seam_weights: one non-negative weight per pair, as for `code_pairs`
         seam_keys: one key per target, used only by `inherit` to carry a phase over
                      to the next plane set by what the loop is rather than by where

@@ -1,14 +1,14 @@
 """Write the good loops with vertices coloured by their slicing axis.
 
 Every loop belongs to an x-, y- or z-plane; colouring whole loop blocks by axis
-makes the three families visible in any PLY viewer.  `rosa_main` now writes this
+makes the three families visible in any PLY viewer.  `plc_main` now writes this
 colouring into `*_good_loops.ply` directly, so this script is for runs made
 before that and leaves the main file untouched.
 
 Usage
 -----
-    python plc_utils/axis_color_loops.py --run log/cmp_tri_tv01_lucy
-    python plc_utils/axis_color_loops.py --run log/cmp_tri_tv01_bunny --preview
+    python utils/axis_color_loops.py --run log/cmp_tri_tv01_lucy
+    python utils/axis_color_loops.py --run log/cmp_tri_tv01_bunny --preview
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ import trimesh
 
 import _paths  # noqa: E402
 import loop_propagation as lp  # noqa: E402
-from plc_model.loop_extraction import AXIS_COLORS, AXIS_HEX  # noqa: E402
+from model.loop_extraction import AXIS_COLORS, AXIS_HEX  # noqa: E402
 
 AXCOL = dict(zip('xyz', AXIS_HEX))
 AXRGB = dict(zip('xyz', AXIS_COLORS))

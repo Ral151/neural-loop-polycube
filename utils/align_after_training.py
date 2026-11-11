@@ -12,7 +12,7 @@ propagation tracks this compares
 * the seam spread of each chain, raw and after the closed-form solve in
   `align_loops.synchronize`, normalized by the chain's mean loop radius.
 
-Runs are finished `rosa_main` outputs; the pairing is a step 2 `tracks.json`.
+Runs are finished `plc_main` outputs; the pairing is a step 2 `tracks.json`.
 """
 from __future__ import annotations
 

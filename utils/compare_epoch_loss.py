@@ -6,7 +6,7 @@ four comparison shapes.  The top row is the total objective each run's own
 `run.txt` prints; the bottom row is its fit term, which is directly comparable
 across arms even when a run leaves tv out of the loss.
 
-  python plc_utils/compare_epoch_loss.py 'log/20261108_*_fixed_*' \
+  python utils/compare_epoch_loss.py 'log/20261108_*_fixed_*' \
       'log/20261108_*_random_*' --out log/epoch_loss_compare.png
 """
 from __future__ import annotations

@@ -8,8 +8,8 @@ once the sweeps finish.
 
 Usage
 -----
-    python plc_utils/loop_sweep_movie.py --run log/cmp_tri_tv01_lucy --preview
-    python plc_utils/loop_sweep_movie.py --run log/cmp_tri_tv01_lucy
+    python utils/loop_sweep_movie.py --run log/cmp_tri_tv01_lucy --preview
+    python utils/loop_sweep_movie.py --run log/cmp_tri_tv01_lucy
 """
 from __future__ import annotations
 
