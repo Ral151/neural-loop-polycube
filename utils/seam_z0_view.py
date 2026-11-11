@@ -55,17 +55,25 @@ def run_geometry(run: Path):
     verts = np.asarray(mesh.vertices, dtype=np.float64)
     colors = np.asarray(mesh.visual.vertex_colors, dtype=np.uint8).copy()
 
+    ## M = good vertices / good loops, from the run's own `_loop_split.txt`; older
+    ## runs without that file read M from the console log beside the run folder
+    split = ply.with_name(ply.name.replace('_good_loops.ply', '_loop_split.txt'))
     log = Path(str(run) + '.log')
-    if not log.exists():
-        raise FileNotFoundError(f'run log {log} is missing')
-    text = log.read_text()
-    found = re.findall(r'M = (\d+) points each', text)
-    if found:
-        M = int(found[-1])
+    if split.exists():
+        n_good = split.read_text().strip().count('g')
+        M = len(verts) // max(n_good, 1)
+    elif log.exists():
+        text = log.read_text()
+        found = re.findall(r'M = (\d+) points each', text)
+        if found:
+            M = int(found[-1])
+        else:
+            n_loops = [int(a) for a in re.findall(r'loops: (\d+) from \d+ planes', text)][-1]
+            n_bad = [int(a) for a in re.findall(r'(\d+) bad loops all red', text)][-1]
+            M = len(verts) // (n_loops - n_bad)
     else:
-        n_loops = [int(a) for a in re.findall(r'loops: (\d+) from \d+ planes', text)][-1]
-        n_bad = [int(a) for a in re.findall(r'(\d+) bad loops all red', text)][-1]
-        M = len(verts) // (n_loops - n_bad)
+        raise FileNotFoundError(f'neither {split.name} nor {log} is there to say '
+                                f'how many points each loop has')
 
     if len(verts) % M:
         raise ValueError(f'{ply}: {len(verts)} vertices do not split into blocks '

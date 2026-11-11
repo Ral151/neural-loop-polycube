@@ -509,6 +509,9 @@ def step1(run: Path, out: Path, args):
     # montages
     for name, group in (('stable_montage.png', stable),
                         ('rejected_montage.png', rejected)):
+        ## no loop on one side (a short fit, or a clean one) leaves nothing to draw
+        if not group:
+            continue
         cols = 8
         rows = int(np.ceil(len(group) / cols))
         fig, axs = plt.subplots(rows, cols, figsize=(1.55 * cols, 1.62 * rows),
@@ -1802,6 +1805,14 @@ def main():
     args = ap.parse_args()
     run = (ROOT / args.run).resolve() if not Path(args.run).is_absolute() else Path(args.run)
     out = (ROOT / args.out).resolve() if not Path(args.out).is_absolute() else Path(args.out)
+    ## every step measures loops against their own labelled slice points, which only
+    ## the per-plane files hold. The split-PLY fallback in `load_run` has the curves
+    ## alone (it stands the curve in for its points), enough to draw a run but not to
+    ## propagate one: every loop would read as a perfect, stable fit.
+    if not (run / 'planes').is_dir():
+        raise SystemExit(f'{run}: no planes/ folder. Propagation needs the per-plane '
+                         f'slice and fit files; refit with `plc_main.py --train '
+                         f'--save-plane-files`')
     out.mkdir(parents=True, exist_ok=True)
     save_json(out / 'run.json', dict(
         run=str(run), rms=args.rms, tau=args.tau, accept=args.accept,
@@ -1810,6 +1821,10 @@ def main():
         good_only=args.good_only))
     if args.step in ('1', 'all'):
         r1 = step1(run, out, args)
+        ## nothing seeds a track, so the later steps would only fail on empty input
+        if args.step == 'all' and not r1['stable']:
+            raise SystemExit(f'step 1 kept no stable loop (RMS cut {args.rms}); '
+                             f'steps 2-4 need at least one. Fit longer, or raise --rms')
     if args.step in ('2', 'all'):
         r2 = step2(run, out, args)
     if args.step == '2b':

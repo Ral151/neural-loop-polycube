@@ -57,6 +57,9 @@ def curves_of(model, meta):
     n = int(meta['latent_points'])
     count = int(meta['num_models'])
     z = torch.linspace(0, 1, n + 1)[:-1, None]
+    ## an axis-conditioned network reads each loop's plane normal; others ignore it
+    axes = (None if meta.get('axes') is None
+            else torch.as_tensor(np.asarray(meta['axes']), dtype=torch.float32))
     with torch.no_grad():
         if meta['feature_mode'] == 'triplane':
             if meta.get('queries') is None:
@@ -64,9 +67,9 @@ def curves_of(model, meta):
                                  'save them')
             query = torch.as_tensor(np.asarray(meta['queries']), dtype=torch.float32)
             feat = model.triplane(query)
-            return model(z[None].expand(count, -1, -1), None, feat)[0].detach()
+            return model(z[None].expand(count, -1, -1), None, feat, axes)[0].detach()
         codes = torch.as_tensor(np.asarray(meta['codes']), dtype=torch.int64)
-        return model(z[None].expand(count, -1, -1), codes)[0].detach()
+        return model(z[None].expand(count, -1, -1), codes, None, axes)[0].detach()
 
 
 def seam_distance(curves, pairs, phase=None):
@@ -107,6 +110,12 @@ def describe(path):
         raise SystemExit(f'{path}: the graph matched none of the checkpoint keys')
     curves = curves_of(model, meta)
     lines = [f'{path}', f'  {len(pairs)} pairs from {graph.name}']
+    ## the checkpoint keeps the loop centres but not the slice points an
+    ## occupied-cells fit pooled its features over, so the curves above are decoded
+    ## from the centre feature: not the ones the fit drew or exported
+    if meta.get('feature_pool', 'centroid') == 'occupied_cells':
+        lines.append('  WARNING: this run pooled occupied cells; D below is read from '
+                     'centre features, not the fitted curves, and can be far off')
     at_zero = seam_distance(curves, pairs, None)
     if ckpt.get('phases') is None:
         lines.append(f'  D at z = 0 (exported): {summary(at_zero)}')

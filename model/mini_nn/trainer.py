@@ -27,7 +27,8 @@ class Trainer:
                  distill_weights=None,
                  seam_align=0.0, seam_pairs=None, seam_weights=None, seam_keys=None,
                  seam_every=10, seam_start=0, seam_steps=100, seam_lam=0.02,
-                 seam_lr=2e-2, seam_mu=1e-3, freeze_f_epochs=0):
+                 seam_lr=2e-2, seam_mu=1e-3, freeze_f_epochs=0,
+                 axis_condition=False):
         """
         Fit a list of point sets, one target per sample.
 
@@ -243,9 +244,12 @@ class Trainer:
         self.dataloader = DataGenerator(point_sets, max_points,
                                         batch_size or len(point_sets), seed, normals)
         
+        ## axis_condition: also feed every loop the unit normal of the plane it was
+        ## cut on, so loops of different axes through the same region are told apart
         self.model = make_network(feature_mode, num_models=num_models,
                                   num_neurons=num_neurons, num_layers=num_layers,
-                                  feat_dim=feat_dim, triplane=triplane).to(self.device)
+                                  feat_dim=feat_dim, triplane=triplane,
+                                  axis_condition=axis_condition).to(self.device)
 
         ## the occupied nodes depend only on the frame and the fixed target
         ## points, so the gather structure is built once; the grid values it
@@ -499,11 +503,19 @@ class Trainer:
                 f'pools them as {self.feature_pool}; the teacher and the student '
                 f'must read the same feature')
 
+        teacher_axis = bool(ckpt.get('axis_condition', False))
+        if teacher_axis != self.model.axis_condition:
+            raise ValueError(
+                f'{warmup} was warmed {"with" if teacher_axis else "without"} the '
+                f'plane axis as input and this network is '
+                f'{"" if self.model.axis_condition else "not "}axis-conditioned; '
+                f'the teacher and the student must read the same condition')
         teacher = make_network('triplane',
                                num_neurons=int(ckpt['num_neurons']),
                                num_layers=int(ckpt['num_layers']),
                                pe=bool(ckpt['pe']),
-                               triplane=dict(ckpt['triplane']))
+                               triplane=dict(ckpt['triplane']),
+                               axis_condition=teacher_axis)
         ## checkpoints written before the inverse head carry no cycle.* keys
         teacher.load_state_dict(ckpt['state_dict'], strict=False)
         teacher.to(self.device).eval()
@@ -543,7 +555,7 @@ class Trainer:
                 feat = teacher.triplane.pool_cells(cells, masks)
             else:
                 feat = teacher.triplane(points)
-            out, _ = teacher(z, None, feat)
+            out, _ = teacher(z, None, feat, self.axes)
             v = out - out.mean(1, keepdim=True)
             vi, vj = v[pairs[:, 0]], v[pairs[:, 1]]
             ## D is a ratio, so each side reads its own curve size: the teacher
@@ -598,7 +610,7 @@ class Trainer:
                    else torch.as_tensor(self.codes, device=self.device))
             feat = self.feature_values() if self.feature_mode == 'triplane' else None
             curves = self.model(self.z[None].expand(count, -1, -1), idx,
-                                feat)[0].detach()
+                                feat, self.axes)[0].detach()
         ## the centroid is read before any phase is applied, so the centred curve a
         ## phase draws is the same set of points slid through the coords: on a dense
         ## loop the sampled mean barely moves, and fixing it keeps the distance about
@@ -753,7 +765,7 @@ class Trainer:
                 ## respect to the coords, so they have to be a graph input, and a view
                 ## of the shared self.z would pile every step's gradient onto one leaf
                 z = self.z.expand(target.shape[0], -1, -1).clone().requires_grad_(True)
-                out, zpred = self.model(z, idx, feat)       # B x N x 3, B x N x 1
+                out, zpred = self.model(z, idx, feat, axis)  # B x N x 3, B x N x 1
                 ## both terms read the cloud's normals: the pairing compares them in
                 ## the curve's own plane, the direction term projects the raw vector
                 ## itself
@@ -1094,7 +1106,12 @@ class Trainer:
             idx = torch.as_tensor([self.codes[i]], device=self.device)
             feat = None
         with torch.no_grad():
-            return self.model(self.phase_coords(i), idx, feat)[0][0]
+            return self.model(self.phase_coords(i), idx, feat,
+                              self._axis_of(i))[0][0]
+
+    def _axis_of(self, i):
+        """The 1 x 3 plane normal of point set i, or None for the base curve."""
+        return None if i is None else self.axes[i:i + 1]
 
     def predict_tangent(self, i=None):
         """
@@ -1122,7 +1139,8 @@ class Trainer:
         ## coords carry the loop's seam phase, so the tangent is read at the same
         ## points predict draws rather than one loop's worth further round
         z = self.phase_coords(i)[None].clone().requires_grad_(True)
-        return curve_tangent(self.model(z, idx, feat)[0], z)[0].detach().cpu().numpy()
+        return curve_tangent(self.model(z, idx, feat, self._axis_of(i))[0],
+                             z)[0].detach().cpu().numpy()
 
     def predict_with_normals(self, i, axis=None):
         """
@@ -1176,7 +1194,7 @@ class Trainer:
         z = self.z.expand(len(idx), -1, -1).clone().requires_grad_(True)
         ## a derivative needs the graph, so this cannot sit under no_grad like predict;
         ## the graph is dropped with the return value
-        d1 = curve_tangent(self.model(z, idx, feat)[0], z)
+        d1 = curve_tangent(self.model(z, idx, feat, self.axes)[0], z)
         return float(bend_penalty(d1, curve_curvature(d1, z)))
 
     def nearest_distance(self, points, target):
@@ -1232,6 +1250,7 @@ def save_model(path, trainer, **meta):
                  else trainer.queries.detach().cpu().numpy()),
         axes=(None if trainer.axes is None
               else trainer.axes.detach().cpu().numpy()),
+        axis_condition=bool(getattr(trainer.model, 'axis_condition', False)),
         triplane=triplane,
         phases=(None if trainer.phase is None
                 else trainer.phase.detach().cpu().numpy()),
@@ -1254,7 +1273,8 @@ def load_model(path, device='cpu'):
                          num_neurons=ckpt['num_neurons'],
                          num_layers=ckpt.get('num_layers', 2),
                          feat_dim=ckpt['embedding_dim'],
-                         pe=ckpt['pe'], triplane=ckpt['triplane'])
+                         pe=ckpt['pe'], triplane=ckpt['triplane'],
+                         axis_condition=bool(ckpt.get('axis_condition', False)))
     model.load_state_dict(ckpt['state_dict'], strict=False)
     model.to(device).eval()
     meta = {k: v for k, v in ckpt.items() if k != 'state_dict'}

@@ -84,6 +84,10 @@ def build_parser():
                              'nodes its own points occupy (occupied_cells, default) '
                              'or its centre (centroid). A fit that pools the shape '
                              'loops the same way needs a warm-up trained this way too')
+    parser.add_argument('--axis-condition', action='store_true',
+                        help='also feed every loop the unit normal of the plane it '
+                             'was cut on. A fit with --axis-condition needs a warm-up '
+                             'trained with it, and one without needs one without')
     parser.add_argument('--out', default='warmup/cube_warmup_random_ranges.pt',
                         help='checkpoint path (default warmup/'
                              'cube_warmup_random_ranges.pt, the path plc_main '
@@ -204,7 +208,8 @@ def main(args=None):
     frame = dict(centre=np.zeros(3), half=np.full(3, mini_nn.UNIT_CUBE_HALF),
                  resolution=args.resolution, channels=args.channels, tv=0.0)
     model = mini_nn.TriplaneNN(num_neurons=args.neurons,
-                               num_layers=args.layers, triplane=frame).to(device)
+                               num_layers=args.layers, triplane=frame,
+                               axis_condition=args.axis_condition).to(device)
     loops = 3 * args.planes
     layout = (f'{args.cubes} random cubes per step, redrawn every '
               f'{args.resample_every} step(s), half in '
@@ -212,6 +217,7 @@ def main(args=None):
               if args.cubes else f'{loops} loops ({args.planes} per axis)')
     print(f'cube warm-up: {layout}, {args.samples} samples each, '
           f'{args.layers}x{args.neurons} net, {args.feature_pool} features, '
+          f'axis condition {"on" if args.axis_condition else "off"}, '
           f'{args.resolution} x {args.resolution} x 3 grids of {args.channels} '
           f'channels, on {device}')
 

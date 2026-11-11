@@ -25,6 +25,6 @@ fi
 for path in "${files[@]}"; do
     shape=$(basename "$path" .ply)
     echo "== $shape"
-    "$PYTHON" main.py stylize --points "$path" --out "$OUT/$shape" \
+    "$PYTHON" utils/cubic_stylize_points.py --points "$path" --out "$OUT/$shape" \
         --lam "$LAM" --iters "$ITERS"
 done

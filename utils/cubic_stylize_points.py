@@ -33,8 +33,8 @@ back before export.
 
 Example:
     python utils/cubic_stylize_points.py \
-        --points normalized_shapes/rocker-arm_points.ply \
-        --out logs/cubic/rocker --lam 3 --iters 60
+        --points Datasets/Genus0/rocker-arm.ply \
+        --out log/cubic/rocker-arm --lam 3 --iters 60
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ from scipy.sparse.linalg import splu
 from scipy.spatial import cKDTree
 
 import _paths  # noqa: E402
-from utils.utils import _load_point_file                          # noqa: E402
+from utils.ply_io import load_points                              # noqa: E402
 
 
 def build_graph(points: np.ndarray, k: int):
@@ -113,7 +113,9 @@ def pca_normals(points, k, ref_normals, device):
     nbr = torch.as_tensor(nbr[:, 1:], dtype=torch.long, device=device)
     diff = t[nbr] - t[:, None, :]
     cov = diff.transpose(1, 2) @ diff
-    _, vec = torch.linalg.eigh(cov)
+    ## cuSOLVER's batched eigh refuses large batches (torch 2.9.1 + CUDA 12.8 fails
+    ## at 50k 3x3 matrices, a 200k-point cloud is one per point), so solve in chunks
+    vec = torch.cat([torch.linalg.eigh(c)[1] for c in cov.split(16384)])
     n = vec[..., 0]
     ref = torch.as_tensor(ref_normals, dtype=torch.float32, device=device)
     n = n * torch.where((n * ref).sum(-1, keepdim=True) < 0, -1.0, 1.0)
@@ -185,7 +187,7 @@ def main() -> None:
     device = torch.device(args.device if torch.cuda.is_available()
                           or args.device == 'cpu' else 'cpu')
 
-    pts, normals = _load_point_file(args.points)
+    pts, normals = load_points(args.points)
     if normals is None:
         raise SystemExit('the point cloud needs normals')
     pts = np.asarray(pts, dtype=np.float64)

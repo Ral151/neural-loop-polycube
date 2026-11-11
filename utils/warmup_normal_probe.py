@@ -144,7 +144,8 @@ def decode_at(trainer, xyz, axis):
                         device=trainer.device)
     feat = trainer.model.triplane.sample(q)
     z = trainer.z[None].clone().requires_grad_(True)
-    out = trainer.model(z, None, feat)[0]
+    a = torch.as_tensor(unit(axis), dtype=torch.float32, device=trainer.device)[None]
+    out = trainer.model(z, None, feat, a)[0]
     tangent = mini_nn.curve_tangent(out, z)[0].detach().cpu().numpy()
     points = out[0].detach().cpu().numpy()
     return points, np.cross(tangent, unit(axis)[None, :])

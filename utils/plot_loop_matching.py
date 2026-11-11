@@ -33,7 +33,7 @@ AXES = 'xyz'
 GREEN, RED = '#1a9850', '#d73027'
 
 
-def fitted(model, queries, frame, n):
+def fitted(model, queries, frame, n, axes=None):
     """Every loop as the trained network draws it, in the cloud frame, with its
     analytic tangent."""
     z = torch.linspace(0, 1, n + 1)[:-1, None]
@@ -42,7 +42,8 @@ def fitted(model, queries, frame, n):
     outs, tans = [], []
     for i in range(len(queries)):
         zz = z.clone().requires_grad_(True)
-        out = model(zz[None].expand(1, -1, -1), None, feat[i:i + 1])[0]
+        out = model(zz[None].expand(1, -1, -1), None, feat[i:i + 1],
+                    None if axes is None else axes[i:i + 1])[0]
         tans.append(mini_nn.curve_tangent(out, zz).detach())
         ## the network predicts in the plane's frame; the export adds the plane's
         ## centre point back, which is what puts the curve on the cloud
@@ -143,7 +144,8 @@ def main():
         model = mini_nn.TriplaneNN(num_neurons=ckpt['num_neurons'],
                                    num_layers=ckpt.get('num_layers', 2),
                                    pe=ckpt['pe'],
-                                   triplane=dict(ckpt['triplane']))
+                                   triplane=dict(ckpt['triplane']),
+                                   axis_condition=bool(ckpt.get('axis_condition', False)))
         if args.state is None:
             mini_nn.load_warmup(args.warmup, model)
         else:
@@ -162,7 +164,7 @@ def main():
     axes_t = torch.as_tensor(axes)
     frame = np.asarray(ckpt['plane_point'])
     curves, tangents = fitted(model, queries,
-                              torch.as_tensor(frame), n)
+                              torch.as_tensor(frame), n, axes_t)
 
     wind = np.load(args.run / f'{args.stem}_loop_winding.npz')
     W, epoch = wind['winding'], wind['epoch']

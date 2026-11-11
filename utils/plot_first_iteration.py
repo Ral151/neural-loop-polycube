@@ -72,7 +72,8 @@ def first_iteration(ckpt, warmup):
     """Every loop as the fit draws it before its first update, in the cloud frame."""
     model = mini_nn.TriplaneNN(num_neurons=ckpt['num_neurons'],
                                num_layers=ckpt['num_layers'], pe=ckpt['pe'],
-                               triplane=dict(ckpt['triplane']))
+                               triplane=dict(ckpt['triplane']),
+                               axis_condition=bool(ckpt.get('axis_condition', False)))
     mini_nn.load_warmup(warmup, model)
     model.eval()
     n = int(ckpt['latent_points'])
@@ -80,7 +81,8 @@ def first_iteration(ckpt, warmup):
     queries = torch.as_tensor(ckpt['queries'])
     with torch.no_grad():
         feat = model.triplane(queries)
-        out = model(z[None].expand(len(queries), -1, -1), None, feat)[0]
+        out = model(z[None].expand(len(queries), -1, -1), None, feat,
+                    torch.as_tensor(ckpt['axes']))[0]
     ## the network draws each loop in its plane's frame, whose origin is the plane's
     ## centre point; the export adds it back, and so must any replay of the fit.
     ## The checkpoint keeps that point per loop, not per plane

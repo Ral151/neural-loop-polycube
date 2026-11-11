@@ -178,6 +178,14 @@ def build_parser():
                              'centroid samples the one query at the loop\'s world '
                              'centre, the 48-D code every earlier run used. Needs '
                              '--feature triplane and a warm-up trained the same way')
+    parser.add_argument('--axis-condition', action='store_true',
+                        help='also feed every loop the unit normal of the plane it '
+                             'was cut on, appended to its feature. The triplane '
+                             'feature says where a loop is but not which way it was '
+                             'cut, so without it an x-, a y- and a z-loop through the '
+                             'same region read near-equal codes. Off by default; the '
+                             '--warmup checkpoint must be trained with the same '
+                             'setting (`model/warmup_cube.py --axis-condition`)')
     parser.add_argument('--distill', type=float, default=0.0, metavar='W',
                         help='weight of a teacher-student seam distillation: the '
                              'cube warm-up is read at this shape\'s own queries and '
@@ -485,7 +493,7 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
               samples_end=None, code_init='blend', code_smooth=0.0,
               code_gate=2.0, code_min_radius=0.4, feature='embedding',
               triplane_res=32, triplane_channels=16, triplane_tv=0.0,
-              feature_pool='occupied_cells',
+              feature_pool='occupied_cells', axis_condition=False,
               distill=0.0, distill_warmup=None,
               seam_align=0.0, seam_every=10, seam_start=0, seam_steps=100,
               seam_lam=0.02, freeze_f_epochs=0):
@@ -1025,6 +1033,7 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
                 feature_pairs=code_pairs,
                 feature_tv=triplane_tv,
                 freeze_f_epochs=max(0, freeze_f_epochs - done),
+                axis_condition=axis_condition,
                 distill=distill_weight, distill_warmup=teacher_warmup,
                 distill_pairs=code_pairs, distill_weights=code_weights,
                 **seam_args)
@@ -1033,7 +1042,8 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
                   f'{trainer.dataloader.max_points} points each, triplane {shape}, '
                   f'{trainer.model.triplane.feat_dim}-D features, '
                   f'{feature_pool}, '
-                  f'{layers}x{neurons} net, align {align:g}'
+                  f'{layers}x{neurons} net, align {align:g}, '
+                  f'axis condition {"on" if axis_condition else "off"}'
                   f'{f", f map frozen for {freeze_f_epochs} epochs" if freeze_f_epochs else ""}'
                   f'{f", distill {distill_weight:g}" if distill_weight else ""}'
                   f'{f", cycle {cycle:g}" if cycle else ""}'
@@ -1052,6 +1062,7 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
                                       code_smooth=code_smooth,
                                       freeze_f_epochs=max(0, freeze_f_epochs
                                                           - done),
+                                      axis_condition=axis_condition,
                                       **seam_args)
             print(f'  fitting {len(targets)} loops, M = '
                   f'{trainer.dataloader.max_points} points each, {len(row_of)} plane '
@@ -1408,6 +1419,7 @@ def main(argv=None):
                   triplane_channels=args.triplane_channels,
                   triplane_tv=args.triplane_tv,
                   feature_pool=args.feature_pool,
+                  axis_condition=args.axis_condition,
                   freeze_f_epochs=args.freeze_f_epochs,
                   distill=args.distill, distill_warmup=args.distill_warmup,
                   seam_align=args.seam_align, seam_every=args.seam_every,

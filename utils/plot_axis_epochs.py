@@ -36,7 +36,7 @@ from plot_loop_matching import targets_for, panel, GREEN, RED
 AXES = 'xyz'
 
 
-def all_curves(model, queries, frame, n):
+def all_curves(model, queries, frame, n, axes=None):
     """Every loop in one batched forward, with its analytic tangent.
 
     The network conditions each sample on its own feature, so a batch of 139
@@ -47,7 +47,7 @@ def all_curves(model, queries, frame, n):
     z = z[None].expand(len(queries), -1, -1).clone().requires_grad_(True)
     with torch.no_grad():
         feat = model.triplane(queries)
-    out = model(z, None, feat)[0]
+    out = model(z, None, feat, axes)[0]
     tan = mini_nn.curve_tangent(out, z).detach()
     return out.detach() + frame[:, None, :], tan
 
@@ -114,7 +114,7 @@ def main():
 
     ## the final fit fixes which target colour belongs to which loop of a plane
     final, _ = mini_nn.load_model(args.run / f'{args.stem}_model.pt')
-    final_curves, _ = all_curves(final, queries, frame, n)
+    final_curves, _ = all_curves(final, queries, frame, n, axes_t)
 
     plane_of = {}
     for i in range(len(keys)):
@@ -146,7 +146,7 @@ def main():
     for e_i, e in enumerate(epochs):
         model = (build(ckpt, None, args.warmup) if e == 0
                  else build(ckpt, str(states / f'state_e{e}.pt'), None))
-        curves, tangents = all_curves(model, queries, frame, n)
+        curves, tangents = all_curves(model, queries, frame, n, axes_t)
 
         for k, axis in enumerate(AXES):
             mine = sorted((int(i) for i in loops[k]),

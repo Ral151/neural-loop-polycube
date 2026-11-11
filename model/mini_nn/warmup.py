@@ -195,7 +195,7 @@ def warm_on_cube(model, steps=300, lr=3e-2, align=1.0, seam=1.0, planes=4,
             ## read again every step: the field's sample is a graph input and the
             ## step before freed it
             feat = features(queries, cells, masks)
-            out = model(z, None, feat)[0]
+            out = model(z, None, feat, axes)[0]
             fit = (out - targets).norm(dim=-1).mean()
             loss = fit
             direction = None
@@ -214,7 +214,7 @@ def warm_on_cube(model, steps=300, lr=3e-2, align=1.0, seam=1.0, planes=4,
             ## arriving rather than only where they stopped. The direction reading
             ## costs one derivative, the same one the loss takes
             if on_step is not None and step % on_step_every == 0:
-                snap = model(z, None, features(queries, cells, masks))[0]
+                snap = model(z, None, features(queries, cells, masks), axes)[0]
                 readings = dict(
                     fit=float((snap - targets).norm(dim=-1).mean()),
                     cos=(None if not align else
@@ -239,7 +239,7 @@ def warm_on_cube(model, steps=300, lr=3e-2, align=1.0, seam=1.0, planes=4,
         pair_scale, cells, masks = batch['pair_scale'], batch['cells'], batch['masks']
         feat = features(queries, cells, masks)
         zz = coords[None].expand(count, -1, -1).clone().requires_grad_(True)
-        out = model(zz, None, feat)[0]
+        out = model(zz, None, feat, axes)[0]
         with torch.no_grad():
             per = (out - targets).norm(dim=-1).mean(1)
             gap = seam_gap(out, pairs, pair_scale)
@@ -285,6 +285,7 @@ def save_warmup(path, model, feature_pool='centroid', **meta):
         pe=bool(model.pe),
         embedding_dim=int(model.embedding_dim),
         feature_pool=feature_pool,
+        axis_condition=bool(getattr(model, 'axis_condition', False)),
         num_models=1,
         codes=np.zeros(1, dtype=np.int64),
         queries=None,
@@ -316,6 +317,13 @@ def load_warmup(path, model):
     if getattr(model, 'feature_mode', None) != 'triplane':
         raise ValueError('a cube warm-up transfers through the triplane field, and '
                          'this model conditions on embedding rows')
+    ## the first layer's width would catch this too, but only as a shape mismatch
+    warmed_axis = bool(ckpt.get('axis_condition', False))
+    if warmed_axis != bool(getattr(model, 'axis_condition', False)):
+        raise ValueError(f'{path} was warmed {"with" if warmed_axis else "without"} '
+                         f'the plane axis as input and this network is '
+                         f'{"" if model.axis_condition else "not "}axis-conditioned; '
+                         f'warm up with the same --axis-condition setting')
     source = ckpt['state_dict']
     own = model.state_dict()
     shared = {name: value for name, value in source.items()
