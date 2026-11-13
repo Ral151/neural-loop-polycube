@@ -33,6 +33,10 @@ utils/                  tools run on a finished fit (python utils/<script>.py --
   seam_z0_view.py       mark every loop's z = 0 seam
   loop_sweep_movie.py   plane-by-plane movie of the fitted loops
   loop_shift_probe.py   decode loops at shifted triplane queries
+  dual_loops.py         the loops as a dual-loop structure: crossings, regions, selection, polycube
+  dual_check.py         do all the loops of a run form a polycube loop structure?
+  dual_cause.py         why a loop crossing has no partner on the other loop
+  dual_polycube.py      select a valid subset of the loops and build its polycube
   cubic_stylize_points.py  cubic stylization of a point cloud (prepares the inputs)
   ply_io.py             read / write point-cloud PLYs
   ...                   further plots and probes used in the experiments (see their docstrings)
@@ -162,7 +166,7 @@ python model/warmup_cube.py --cubes 0 --feature-pool centroid --axis-condition \
 `--cubes 0` trains on one unit cube; the default `--cubes 8` draws 8 cubes of
 random size and place every step, which fits its squares much less well (0.25
 against 0.005 after 300 steps, 0.085 with `--axis-condition`). `--neurons`,
-`--layers`, `--resolution`, `--channels`, `--feature-pool` and
+`--layers`, `--freqs`, `--resolution`, `--channels`, `--feature-pool` and
 `--axis-condition` must match the fit's, or the fit refuses the checkpoint.
 
 ### 2. Extraction — `plc_main.py`
@@ -180,7 +184,9 @@ enclosed region becomes one loop, so a plane can hold several loops. Without
 Extraction, then one MLP fits every loop. Its input is
 `[sin 2πz, cos 2πz, 48-D triplane feature]`, plus the loop's plane normal with
 `--axis-condition`, and it outputs the loop's point at parameter `z` in the
-plane's frame. The feature is read from three 32×32 grids with 16 channels each:
+plane's frame. `--freqs F` adds the higher harmonics `sin 2πkz, cos 2πkz` for
+`k = 2..F` to the input (default 1, the single pair), so the network can draw
+sharp corners. The feature is read from three 32×32 grids with 16 channels each:
 at the loop's centre (`--feature-pool centroid`) or averaged over the grid cells
 the loop's points occupy (`occupied_cells`). Either way, nearby loops start
 from similar codes.
@@ -274,6 +280,37 @@ triplane codes (average linkage; k by silhouette unless `--k` is given) and
 draws them in world space and in the codes' PCA basis; the PLY puts a sphere in
 the cluster's colour at every loop centre.
 
+### 6. Polycube from the loops (experimental) — `utils/dual_polycube.py`
+
+The x-, y- and z-loops are read as the X-, Y- and Z-loops of a polycube loop
+structure (Snoep, Speckmann, Verbeek, *Robust Construction of Polycube
+Segmentations via Dual Loops*, arXiv 2402.00652). No mesh is needed: two loops
+of different axes can only cross on the line their planes share, and the
+crossings, with the surface normal, give the regions between the loops.
+
+```bash
+scripts/dual_polycube.sh armadillo_normal_cubic_lam3     # fit with 8 harmonics, then steps below
+python utils/dual_check.py log/<run>/fit                 # how far all the loops are from a valid structure
+python utils/dual_cause.py log/<run>/fit                 # why crossings are unmatched (needs planes/)
+python utils/dual_polycube.py log/<run>/fit              # -> log/<run>/polycube/
+```
+
+`dual_check.py` reports the unmatched crossings, the Euler characteristic (2
+for a valid genus-0 structure) and the regions that break the paper's rules.
+The full set of loops is not valid, so `dual_polycube.py` selects a jointly
+valid subset: it starts from a cube (one loop per axis, each pair crossing
+twice), adds loops while the set stays valid, and repeats this from `--starts`
+starting cubes (default 400; `--starts 1` is a quick single pass). The best
+set becomes a polycube: a region is a corner, a crossing a quad face, and the
+coordinates come from the plane offsets. It writes `dual_primal.png` (kept
+loops, quad layout on the shape, polycube), `polycube.obj`,
+`layout_on_shape.obj`, `structure.npz` and `kept_loops.txt`. All three scripts
+only read the run folder.
+
+How much of the shape the polycube covers depends on how well the fitted
+loops agree where they cross; `--freqs 8` gave the largest one on armadillo.
+The method, the measurements and the open problems are in `Documentation.md`.
+
 ## Defaults: `plc_main.py` vs `run_shape.sh`
 
 `plc_main.py`'s own defaults are not the recommended setup:
@@ -298,12 +335,15 @@ bad loops and seams with a much worse tail (D p90 0.13).
 |---|---|
 | `scripts/warmup.sh` | `model/warmup_cube.py` (arguments pass through) |
 | `scripts/run_shape.sh <shape>` | the whole per-shape workflow: warm-up if missing, fit, seam check, code clusters, seam view, sweep movie, propagation; all in `log/<shape>_<date>_<time>/` as `fit/`, `propagation/` and `<shape>.log` |
+| `scripts/dual_polycube.sh <shape>` | the dual-loop polycube of one shape: warm-up if missing, fit, seam check, `dual_check`, `dual_cause`, `dual_polycube`; all in `log/<shape>_dual_<layers>x<neurons>_f<freqs>_<date>_<time>/` as `fit/`, `polycube/` and `<shape>_dual.log`. With `OUT` set to an earlier run folder it skips the fit and reads that run's `fit/` |
 | `scripts/distill_experiment.sh` | six shapes, with and without distillation, 29 planes, 1000 epochs, then the seam check of both arms |
 | `scripts/freeze_experiment.sh` | eight shapes, the distillation fit with and without the 100-epoch frozen start, then the code clusters at k = 10 |
 | `scripts/stylize_dataset.sh` | cubic stylization of every cloud in a folder (default `Datasets/Genus0`, `LAM=3`, `ITERS=60`) into `log/cubic_lam3/<shape>/` |
 
 Settings are passed as environment variables. `run_shape.sh` reads `SAMPLES`,
-`EPOCHS`, `DISTILL`, `FREEZE`, `K`, `DATA`, `WARMUP`, `OUT` and `PYTHON`; the
+`EPOCHS`, `DISTILL`, `FREEZE`, `K`, `DATA`, `WARMUP`, `OUT` and `PYTHON`;
+`dual_polycube.sh` reads the same except `K`, plus `LAYERS`, `NEURONS`, `FREQS`
+(default 8), `GATE` and `STARTS`; the
 experiment scripts read `SAMPLES`, `EPOCHS`, `DATA`, `WARMUP`, `SHAPES` and
 `PYTHON` (and `FREEZE`); `stylize_dataset.sh` reads `IN`, `OUT`, `SHAPES`, `LAM`,
 `ITERS` and `PYTHON`. The two experiment scripts keep `plc_main.py`'s own
