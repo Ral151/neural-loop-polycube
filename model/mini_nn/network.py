@@ -12,7 +12,7 @@ class miniNN(nn.Module):
     feature_mode = None
 
     def __init__(self, embedding_dim, num_neurons=64, num_layers=2, pe=True,
-                 axis_condition=False):
+                 axis_condition=False, num_freqs=1):
         super(miniNN, self).__init__()
         self.num_layers = int(num_layers)
         if self.num_layers < 1:
@@ -29,7 +29,17 @@ class miniNN(nn.Module):
         ## the sine encoding swaps the single coord for sin/cos, so the first layer
         ## must be built for that width: it cannot be a forward-time switch
         self.pe = pe
-        width = self.condition_dim + (2 if pe else 1)
+        ## how many harmonics of the loop parameter the map is given: sin/cos of
+        ## 2 pi k z for k = 1..num_freqs. One pair is one slow wave round the loop,
+        ## and every sharp corner then has to be built by the layers alone, which a
+        ## small map rounds off; the higher harmonics hand it the fast waves a corner
+        ## is made of. Every harmonic is a whole number of turns, so the two ends of
+        ## the parameter still meet and the loop still closes. 1 is the map every
+        ## earlier checkpoint was trained with
+        self.num_freqs = int(num_freqs)
+        if self.num_freqs < 1:
+            raise ValueError(f'num_freqs must be at least 1, got {num_freqs}')
+        width = self.condition_dim + (2 * self.num_freqs if pe else 1)
         blocks = [nn.Linear(width, num_neurons),
                   nn.Softplus(beta=200)]
         for _ in range(self.num_layers - 1):
@@ -60,7 +70,14 @@ class miniNN(nn.Module):
         ## map to the same input, so the loop closes instead of leaving a seam;
         ## the raw coord is dropped on purpose, it would break that equality
         ang = 2 * np.pi * z
-        return torch.cat([torch.sin(ang), torch.cos(ang)], dim=-1)        # B x N x 2
+        if self.num_freqs == 1:
+            return torch.cat([torch.sin(ang), torch.cos(ang)], dim=-1)    # B x N x 2
+        ## the first pair is the one above, so the layout of a one-harmonic map is
+        ## a prefix of this one: [sin 1, cos 1, sin 2, cos 2, ...]
+        k = torch.arange(1, self.num_freqs + 1, dtype=z.dtype, device=z.device)
+        ang = ang * k                                                     # B x N x F
+        return torch.stack([torch.sin(ang), torch.cos(ang)],
+                           dim=-1).flatten(-2)                            # B x N x 2F
 
     def condition(self, z, idx, feat):
         """B x N x F condition vectors matching the encoded coords."""
@@ -117,10 +134,11 @@ class EmbeddingNN(miniNN):
     feature_mode = 'embedding'
 
     def __init__(self, num_models, num_neurons=64, feat_dim=32, pe=True,
-                 num_layers=2, axis_condition=False):
+                 num_layers=2, axis_condition=False, num_freqs=1):
         super(EmbeddingNN, self).__init__(feat_dim, num_neurons=num_neurons,
                                           num_layers=num_layers, pe=pe,
-                                          axis_condition=axis_condition)
+                                          axis_condition=axis_condition,
+                                          num_freqs=num_freqs)
         self.embedding = nn.Embedding(num_models, feat_dim)
         ## zero weights, so every loop starts from the same curve; the fit is
         ## what moves each row off it and onto its own loop
@@ -142,13 +160,14 @@ class TriplaneNN(miniNN):
     feature_mode = 'triplane'
 
     def __init__(self, num_neurons=64, num_layers=2, pe=True, triplane=None,
-                 axis_condition=False):
+                 axis_condition=False, num_freqs=1):
         if not triplane:
             raise ValueError('triplane mode needs the field configuration')
         field = TriplaneField(**triplane)
         super(TriplaneNN, self).__init__(field.feat_dim, num_neurons=num_neurons,
                                          num_layers=num_layers, pe=pe,
-                                         axis_condition=axis_condition)
+                                         axis_condition=axis_condition,
+                                         num_freqs=num_freqs)
         self.triplane = field
 
     def condition(self, z, idx, feat):
@@ -163,13 +182,14 @@ class TriplaneNN(miniNN):
 
 def make_network(feature_mode='embedding', *, num_models=1, num_neurons=64,
                  num_layers=2, feat_dim=32, pe=True, triplane=None,
-                 axis_condition=False):
+                 axis_condition=False, num_freqs=1):
     """Build the network that reads the requested kind of condition."""
     if feature_mode == 'triplane':
         return TriplaneNN(num_neurons=num_neurons, num_layers=num_layers,
-                          pe=pe, triplane=triplane, axis_condition=axis_condition)
+                          pe=pe, triplane=triplane, axis_condition=axis_condition,
+                          num_freqs=num_freqs)
     if feature_mode == 'embedding':
         return EmbeddingNN(num_models, num_neurons=num_neurons,
                            num_layers=num_layers, feat_dim=feat_dim, pe=pe,
-                           axis_condition=axis_condition)
+                           axis_condition=axis_condition, num_freqs=num_freqs)
     raise ValueError(f'unknown feature mode {feature_mode!r}')

@@ -145,7 +145,8 @@ def main():
                                    num_layers=ckpt.get('num_layers', 2),
                                    pe=ckpt['pe'],
                                    triplane=dict(ckpt['triplane']),
-                                   axis_condition=bool(ckpt.get('axis_condition', False)))
+                                   axis_condition=bool(ckpt.get('axis_condition', False)),
+                                   num_freqs=int(ckpt.get('num_freqs', 1)))
         if args.state is None:
             mini_nn.load_warmup(args.warmup, model)
         else:

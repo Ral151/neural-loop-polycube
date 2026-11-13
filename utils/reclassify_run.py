@@ -103,6 +103,7 @@ def build_trainer(ckpt, targets, normals, frame):
         latent_points=int(ckpt['latent_points']),
         num_neurons=int(ckpt['num_neurons']),
         num_layers=int(ckpt.get('num_layers', 2)),
+        num_freqs=int(ckpt.get('num_freqs', 1)),
         normals=normals,
         feature_mode='triplane', triplane=dict(ckpt['triplane']),
         query_points=queries,

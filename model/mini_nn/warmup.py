@@ -286,6 +286,7 @@ def save_warmup(path, model, feature_pool='centroid', **meta):
         embedding_dim=int(model.embedding_dim),
         feature_pool=feature_pool,
         axis_condition=bool(getattr(model, 'axis_condition', False)),
+        num_freqs=int(getattr(model, 'num_freqs', 1)),
         num_models=1,
         codes=np.zeros(1, dtype=np.int64),
         queries=None,
@@ -324,6 +325,14 @@ def load_warmup(path, model):
                          f'the plane axis as input and this network is '
                          f'{"" if model.axis_condition else "not "}axis-conditioned; '
                          f'warm up with the same --axis-condition setting')
+    ## likewise: the harmonics set the first layer's width, so say which setting
+    ## differs rather than report a bare shape mismatch
+    warmed_freqs = int(ckpt.get('num_freqs', 1))
+    own_freqs = int(getattr(model, 'num_freqs', 1))
+    if warmed_freqs != own_freqs:
+        raise ValueError(f'{path} was warmed with {warmed_freqs} harmonic(s) of the '
+                         f'loop parameter and this network reads {own_freqs}; warm '
+                         f'up with the same --freqs setting')
     source = ckpt['state_dict']
     own = model.state_dict()
     shared = {name: value for name, value in source.items()

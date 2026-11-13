@@ -73,7 +73,8 @@ def first_iteration(ckpt, warmup):
     model = mini_nn.TriplaneNN(num_neurons=ckpt['num_neurons'],
                                num_layers=ckpt['num_layers'], pe=ckpt['pe'],
                                triplane=dict(ckpt['triplane']),
-                               axis_condition=bool(ckpt.get('axis_condition', False)))
+                               axis_condition=bool(ckpt.get('axis_condition', False)),
+                               num_freqs=int(ckpt.get('num_freqs', 1)))
     mini_nn.load_warmup(warmup, model)
     model.eval()
     n = int(ckpt['latent_points'])

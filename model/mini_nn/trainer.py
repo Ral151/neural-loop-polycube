@@ -28,7 +28,7 @@ class Trainer:
                  seam_align=0.0, seam_pairs=None, seam_weights=None, seam_keys=None,
                  seam_every=10, seam_start=0, seam_steps=100, seam_lam=0.02,
                  seam_lr=2e-2, seam_mu=1e-3, freeze_f_epochs=0,
-                 axis_condition=False):
+                 axis_condition=False, num_freqs=1):
         """
         Fit a list of point sets, one target per sample.
 
@@ -190,6 +190,12 @@ class Trainer:
                      while the grid moves the curves onto their slices; released after
                      N epochs, it refines the shapes. 0 (default) trains both from the
                      first step, as every run before this did
+        num_freqs: harmonics of the loop parameter the shared MLP is given, sin/cos
+                     of 2 pi k z for k = 1..num_freqs. 1 (default) is the single pair
+                     every earlier run used, which draws smooth curves and rounds a
+                     sharp corner off; more hand the map the fast waves a corner is
+                     made of. A warm-up checkpoint has to be trained with the same
+                     count, since it sets the width of the first layer
         """
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.feature_mode = feature_mode
@@ -249,7 +255,8 @@ class Trainer:
         self.model = make_network(feature_mode, num_models=num_models,
                                   num_neurons=num_neurons, num_layers=num_layers,
                                   feat_dim=feat_dim, triplane=triplane,
-                                  axis_condition=axis_condition).to(self.device)
+                                  axis_condition=axis_condition,
+                                  num_freqs=num_freqs).to(self.device)
 
         ## the occupied nodes depend only on the frame and the fixed target
         ## points, so the gather structure is built once; the grid values it
@@ -515,7 +522,8 @@ class Trainer:
                                num_layers=int(ckpt['num_layers']),
                                pe=bool(ckpt['pe']),
                                triplane=dict(ckpt['triplane']),
-                               axis_condition=teacher_axis)
+                               axis_condition=teacher_axis,
+                               num_freqs=int(ckpt.get('num_freqs', 1)))
         ## checkpoints written before the inverse head carry no cycle.* keys
         teacher.load_state_dict(ckpt['state_dict'], strict=False)
         teacher.to(self.device).eval()
@@ -1190,12 +1198,22 @@ class Trainer:
         bend term, and the number is printed so the curves' own shape stays visible.
         """
         idx = torch.as_tensor(self.codes, device=self.device)
-        feat = self.feature_values() if self.feature_mode == 'triplane' else None
-        z = self.z.expand(len(idx), -1, -1).clone().requires_grad_(True)
-        ## a derivative needs the graph, so this cannot sit under no_grad like predict;
-        ## the graph is dropped with the return value
-        d1 = curve_tangent(self.model(z, idx, feat, self.axes)[0], z)
-        return float(bend_penalty(d1, curve_curvature(d1, z)))
+        ## a few curves at a time: the second derivative keeps the graph of the first,
+        ## and every loop of a run at once does not fit on the card with a wide map
+        ## (a 4 x 256 one runs out on 24 GB, after the fit and before anything is
+        ## saved). bend_penalty is a mean over curves, so the chunk means weighted by
+        ## their sizes are the same number
+        total, chunk = 0.0, 16
+        for start in range(0, len(idx), chunk):
+            ids = list(range(start, min(start + chunk, len(idx))))
+            feat = (self.feature_values(ids) if self.feature_mode == 'triplane'
+                    else None)
+            z = self.z.expand(len(ids), -1, -1).clone().requires_grad_(True)
+            ## a derivative needs the graph, so this cannot sit under no_grad like
+            ## predict; the graph is dropped with each chunk
+            d1 = curve_tangent(self.model(z, idx[ids], feat, self.axes[ids])[0], z)
+            total += float(bend_penalty(d1, curve_curvature(d1, z)).detach()) * len(ids)
+        return total / max(len(idx), 1)
 
     def nearest_distance(self, points, target):
         """Distance from each row of points to the nearest row of target."""
@@ -1251,6 +1269,7 @@ def save_model(path, trainer, **meta):
         axes=(None if trainer.axes is None
               else trainer.axes.detach().cpu().numpy()),
         axis_condition=bool(getattr(trainer.model, 'axis_condition', False)),
+        num_freqs=int(getattr(trainer.model, 'num_freqs', 1)),
         triplane=triplane,
         phases=(None if trainer.phase is None
                 else trainer.phase.detach().cpu().numpy()),
@@ -1274,7 +1293,9 @@ def load_model(path, device='cpu'):
                          num_layers=ckpt.get('num_layers', 2),
                          feat_dim=ckpt['embedding_dim'],
                          pe=ckpt['pe'], triplane=ckpt['triplane'],
-                         axis_condition=bool(ckpt.get('axis_condition', False)))
+                         axis_condition=bool(ckpt.get('axis_condition', False)),
+                         ## checkpoints written before the harmonics carry one pair
+                         num_freqs=int(ckpt.get('num_freqs', 1)))
     model.load_state_dict(ckpt['state_dict'], strict=False)
     model.to(device).eval()
     meta = {k: v for k, v in ckpt.items() if k != 'state_dict'}

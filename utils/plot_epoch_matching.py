@@ -37,7 +37,8 @@ def build(ckpt, state, warmup):
     model = mini_nn.TriplaneNN(num_neurons=ckpt['num_neurons'],
                                num_layers=ckpt.get('num_layers', 2),
                                pe=ckpt['pe'],
-                               triplane=dict(ckpt['triplane']))
+                               triplane=dict(ckpt['triplane']),
+                               num_freqs=int(ckpt.get('num_freqs', 1)))
     if state is None:
         mini_nn.load_warmup(warmup, model)
     else:

@@ -250,6 +250,14 @@ def build_parser():
     parser.add_argument('--layers', type=int, default=2,
                         help='hidden layers in the shared network, each --neurons wide; '
                              'depth adds capacity without widening the conditioning path')
+    parser.add_argument('--freqs', type=int, default=1, metavar='F',
+                        help='harmonics of the loop parameter the shared network is '
+                             'given: sin/cos of 2 pi k z for k = 1..F. 1 (default) is '
+                             'the single pair every earlier run used; it draws smooth '
+                             'curves and rounds sharp corners off. More hand the '
+                             'network the fast waves a corner is made of. The '
+                             '--warmup checkpoint must be trained with the same '
+                             'value (`model/warmup_cube.py --freqs F`)')
     parser.add_argument('--normal', dest='align', default=0.0,
                         type=float, metavar='W',
                         help='weight of the normal term, which asks the normal the '
@@ -496,7 +504,7 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
               feature_pool='occupied_cells', axis_condition=False,
               distill=0.0, distill_warmup=None,
               seam_align=0.0, seam_every=10, seam_start=0, seam_steps=100,
-              seam_lam=0.02, freeze_f_epochs=0):
+              seam_lam=0.02, freeze_f_epochs=0, freqs=1):
     """Fit every extracted loop and write the predictions, figures and tables.
 
     found: the loop extractor that has already run, whose cloud, planes, loops
@@ -569,6 +577,10 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
              slice, instead of the first updates translating and scaling the loop by
              rewriting the map. It is released after N epochs and the fit continues
              as usual. 0 trains both from the first step
+    freqs: harmonics of the loop parameter the shared MLP is given, sin/cos of
+             2 pi k z for k = 1..freqs. 1 is the single pair every earlier run used;
+             more let the map draw the sharp corners of a cubic slice instead of
+             rounding them off. The warm-up has to be trained with the same count
     snapshot_every: a fit grid is written every this many epochs while the run is
              still going, into <out>/snapshots/, so a run can be watched taking
              shape rather than only judged once it is over.  Each one is the grid
@@ -660,6 +672,8 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
     if snapshot_every < 0:
         raise ValueError(f'snapshot_every must be 0 or a count of epochs, '
                          f'got {snapshot_every}')
+    if freqs < 1:
+        raise ValueError(f'freqs must be at least 1, got {freqs}')
     if feature_pool != 'centroid' and feature != 'triplane':
         raise SystemExit('--feature-pool occupied_cells needs --feature triplane; '
                          'an embedding row is not read from the field')
@@ -1033,7 +1047,7 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
                 feature_pairs=code_pairs,
                 feature_tv=triplane_tv,
                 freeze_f_epochs=max(0, freeze_f_epochs - done),
-                axis_condition=axis_condition,
+                axis_condition=axis_condition, num_freqs=freqs,
                 distill=distill_weight, distill_warmup=teacher_warmup,
                 distill_pairs=code_pairs, distill_weights=code_weights,
                 **seam_args)
@@ -1042,7 +1056,8 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
                   f'{trainer.dataloader.max_points} points each, triplane {shape}, '
                   f'{trainer.model.triplane.feat_dim}-D features, '
                   f'{feature_pool}, '
-                  f'{layers}x{neurons} net, align {align:g}, '
+                  f'{layers}x{neurons} net, {freqs} harmonic'
+                  f'{"" if freqs == 1 else "s"}, align {align:g}, '
                   f'axis condition {"on" if axis_condition else "off"}'
                   f'{f", f map frozen for {freeze_f_epochs} epochs" if freeze_f_epochs else ""}'
                   f'{f", distill {distill_weight:g}" if distill_weight else ""}'
@@ -1063,6 +1078,7 @@ def fit_loops(found, epochs=300, neurons=64, layers=2, align=0.0,
                                       freeze_f_epochs=max(0, freeze_f_epochs
                                                           - done),
                                       axis_condition=axis_condition,
+                                      num_freqs=freqs,
                                       **seam_args)
             print(f'  fitting {len(targets)} loops, M = '
                   f'{trainer.dataloader.max_points} points each, {len(row_of)} plane '
@@ -1380,6 +1396,8 @@ def main(argv=None):
     if args.snapshot_every < 0:
         raise SystemExit(f'--snapshot-every must be 0 or a count of epochs, got '
                          f'{args.snapshot_every}')
+    if args.freqs < 1:
+        raise SystemExit(f'--freqs must be at least 1, got {args.freqs}')
     if args.refine_every < 0:
         raise SystemExit(f'--refine-every must be 0 or a count of epochs, got '
                          f'{args.refine_every}')
@@ -1420,7 +1438,7 @@ def main(argv=None):
                   triplane_tv=args.triplane_tv,
                   feature_pool=args.feature_pool,
                   axis_condition=args.axis_condition,
-                  freeze_f_epochs=args.freeze_f_epochs,
+                  freeze_f_epochs=args.freeze_f_epochs, freqs=args.freqs,
                   distill=args.distill, distill_warmup=args.distill_warmup,
                   seam_align=args.seam_align, seam_every=args.seam_every,
                   seam_start=args.seam_start, seam_steps=args.seam_steps,

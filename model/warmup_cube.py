@@ -88,6 +88,10 @@ def build_parser():
                         help='also feed every loop the unit normal of the plane it '
                              'was cut on. A fit with --axis-condition needs a warm-up '
                              'trained with it, and one without needs one without')
+    parser.add_argument('--freqs', type=int, default=1, metavar='F',
+                        help='harmonics of the loop parameter the network is given, '
+                             'sin/cos of 2 pi k z for k = 1..F (default 1, the '
+                             'single pair). Must match the fit\'s --freqs')
     parser.add_argument('--out', default='warmup/cube_warmup_random_ranges.pt',
                         help='checkpoint path (default warmup/'
                              'cube_warmup_random_ranges.pt, the path plc_main '
@@ -199,6 +203,8 @@ def main(args=None):
     if args.snapshot_every < 0:
         raise SystemExit(f'--snapshot-every must be 0 or a count of steps, got '
                          f'{args.snapshot_every}')
+    if args.freqs < 1:
+        raise SystemExit(f'--freqs must be at least 1, got {args.freqs}')
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -209,14 +215,16 @@ def main(args=None):
                  resolution=args.resolution, channels=args.channels, tv=0.0)
     model = mini_nn.TriplaneNN(num_neurons=args.neurons,
                                num_layers=args.layers, triplane=frame,
-                               axis_condition=args.axis_condition).to(device)
+                               axis_condition=args.axis_condition,
+                               num_freqs=args.freqs).to(device)
     loops = 3 * args.planes
     layout = (f'{args.cubes} random cubes per step, redrawn every '
               f'{args.resample_every} step(s), half in '
               f'[{args.cube_half_min}, {args.cube_half_max}]'
               if args.cubes else f'{loops} loops ({args.planes} per axis)')
     print(f'cube warm-up: {layout}, {args.samples} samples each, '
-          f'{args.layers}x{args.neurons} net, {args.feature_pool} features, '
+          f'{args.layers}x{args.neurons} net, {args.freqs} harmonic'
+          f'{"" if args.freqs == 1 else "s"}, {args.feature_pool} features, '
           f'axis condition {"on" if args.axis_condition else "off"}, '
           f'{args.resolution} x {args.resolution} x 3 grids of {args.channels} '
           f'channels, on {device}')
